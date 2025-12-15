@@ -1,0 +1,25 @@
+R_powFunction(base!Z, exponent!Z=2)
+	multiplied_times: int = exponent
+	multiplier: real = base -> real
+	?exponent<0
+		multiplier = 1/multiplier
+		multiplied_times = -exponent
+	@0..multiplied_times
+		result = result * multiplier
+	>result
+
+?_verify_input(adress: real&, before_input_message: string, invalid_input_message: string = "Invalid input. Please try again!")
+	>>message
+	input_is_incorrect: bool = true
+	@input_is_incorrect
+		input: String = <<
+		? input ?> real
+			adress = input -> real
+			input_is_incorrect = false
+		!: >> invalid_input_message + "\n"
+
+?^*()
+	base, exponent: int = 0
+	verify_input(base, "Enter a base: ", "Enter valid integer base!")
+	verify_input(exponent, "Enter exponent: ", "Enter valid exponent base!")
+	>> base -> S + "^" + exponent -> S + "=" + pow(base, exponent) -> S
