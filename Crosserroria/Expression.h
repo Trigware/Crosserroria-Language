@@ -75,13 +75,12 @@ public:
 	Expression(std::vector<std::variant<Operand, Operator>> expr) : expressionContents(expr) {}
 	Expression();
 	Operand currentOperand, previouslyParsedOperand;
+	Operator latestOperator;
 	int currentBracketNestingLevel;
-	bool constantDeclarationEncountered = false;
+	bool constantDeclarationEncountered = false, latestExpressionElementIsOperand = false;
 	void ParseNextSymbol(std::string symbolName);
 	void EndExpression();
 private:
-	bool latestExpressionElementIsOperand = false;
-	Operator latestOperator;
 	void ParseApostrophe();
 	void ParseNumberChar(char ch);
 	void TerminateNumericLiteral();
@@ -95,6 +94,6 @@ private:
 	void ParseLeftParenthesis();
 	void ParseRightParenthesis();
 	std::string currentBinaryOperator = "";
-	std::vector<std::string> validBinaryOperators = { "+", "-", "*", "/", "%", "^", "==", "!=", "<=", ">=", "&&", "||", "->", "?>", "|", "&" };
+	std::vector<std::string> validBinaryOperators = { "+", "-", "*", "/", "%", "^", "==", "!=", "<=", ">=", "&&", "||", "->", "?>", "|", "&", "..", "..=" };
 	std::stack<bool> leftParenCallsStack;
 };

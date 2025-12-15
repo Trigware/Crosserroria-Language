@@ -7,12 +7,21 @@ enum class InstructionType {
 	PlainExpression,
 	Declaration,
 	Assignment,
-	IfStatement,
-	ElseStatement,
-	OutputStatement,
+	Conditional,
 	LoopStatement,
 	LoopControlFlow,
 	ReturnStatement,
+};
+
+enum class ConditionalType {
+	Unknown,
+	IfStatement,
+	ElifStatement,
+	ElseStatement
+};
+
+struct LoopStatement {
+
 };
 
 struct FunctionLevelInstruction {
@@ -23,5 +32,6 @@ struct FunctionLevelInstruction {
 	DataType variableDeclarationType;
 	bool isDeclaredVariableConstant = false;
 	bool potentiallyEncounteredAssignmentSymbol = false, encounteredAssignment = false;
+	ConditionalType conditionalType;
 	operator std::string() const;
 };

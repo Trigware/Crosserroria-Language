@@ -2,6 +2,7 @@
 .vs/
 *.user
 *.suo
+*.sln
 
 # Build outputs
 Debug/

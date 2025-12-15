@@ -20,7 +20,7 @@ void Lexer::ParseScript(std::string filePath) {
 	while (std::getline(file, currentLine)) {
 		ParseLine(currentLine);
 		i++;
-		if (i == 2) break;
+		if (i == 4) break;
 	}
 	file.close();
 	PrintTokenizedInstructions();
@@ -49,6 +49,7 @@ void Lexer::ParseLine(std::string currentLine) {
 		char ch = currentLine[i];
 		if (!encounteredNonTab && ch == '\t') {
 			currentNestingLevel++;
+			InitializeFunctionLevelMember();
 			continue;
 		}
 		encounteredNonTab = true;
@@ -67,10 +68,18 @@ void Lexer::ParseLine(std::string currentLine) {
 	}
 
 	if (currentNestingLevel == 0) { listOfTokenizedInstructions.push_back(currentClassLevelMember); return; }
+	EndFunctionLevelMember();
+}
+
+void Lexer::EndFunctionLevelMember() {
 	bool hasExpression = functionLevelMember.underlyingExpression.has_value();
-	if (hasExpression) functionLevelMember.underlyingExpression.value().EndExpression();
+	if (hasExpression) {
+		Expression& expression = functionLevelMember.underlyingExpression.value();
+		expression.EndExpression();
+		bool isElse = expression.expressionContents.size() == 1 && !expression.latestExpressionElementIsOperand && expression.latestOperator.operatorContents == "!";
+		if (isElse) { functionLevelMember.underlyingExpression = std::nullopt; functionLevelMember.instructionType = InstructionType::Conditional; functionLevelMember.conditionalType = ConditionalType::ElseStatement; }
+	}
 	if (functionLevelMember.instructionType == InstructionType::Declaration && functionLevelMember.variableDeclarationType.typeName == "") CorrectDeclarationWithoutValue();
-	functionLevelMember.nestingLevel = currentNestingLevel;
 	if (functionLevelMember.instructionType != InstructionType::Unknown) listOfTokenizedInstructions.push_back(functionLevelMember);
 }
 

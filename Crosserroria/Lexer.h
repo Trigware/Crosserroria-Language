@@ -62,4 +62,10 @@ private:
 	void HandleExpressionOnSpecialFunctionLevelSymbol(std::string symbolName);
 	void CorrectDeclarationWithoutValue();
 	void HandleConstantDeclaration(Expression& actualExpression);
+	bool DetermineIfAssigning(std::string symbolName);
+	void InitializeFunctionLevelMember();
+	void ParseConditionalSymbol();
+	void SetupConditional(ConditionalType conditonalType);
+	void HandleInstructionSeperationSymbol(bool createsScope);
+	void EndFunctionLevelMember();
 };
