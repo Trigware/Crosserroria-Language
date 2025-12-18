@@ -1,0 +1,21 @@
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.sln
+
+# Build outputs
+Debug/
+Release/
+x64/
+x86/
+ARM/
+ARM64/
+
+# MSVC intermediates
+*.obj
+*.pdb
+*.ilk
+*.idb
+*.tlog
+*.log
