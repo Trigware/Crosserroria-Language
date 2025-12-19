@@ -1,6 +1,7 @@
 #pragma once
 #include "Lexer.h"
 #include <optional>
+#include <string>
 
 enum class InstructionType {
 	Unknown,

@@ -43,7 +43,7 @@ public:
 private:
 	std::vector<std::variant<ClassLevelMember, FunctionLevelInstruction>> listOfTokenizedInstructions;
 	std::vector<std::string> functionLevelSymbolHistory;
-	std::string currentSymbol = "";
+	std::string currentSymbol = "", compoundOperator = "";
 	ClassLevelMember currentClassLevelMember;
 	FunctionLevelInstruction functionLevelMember;
 	void ParseLine(std::string currentLine);
@@ -64,9 +64,12 @@ private:
 	void HandleConstantDeclaration();
 	bool DetermineIfAssigning(std::string symbolName);
 	void InitializeFunctionLevelMember();
-	void ParseConditionalSymbol();
+	bool ParseConditionalSymbol();
 	void SetupConditional(ConditionalType conditonalType);
 	void HandleInstructionSeperationSymbol(bool createsScope, bool arrowSyntax = false);
 	void EndFunctionLevelMember(bool arrowSyntax = false);
 	void ParseLoopAdjecentStatement();
+	void HandleCompoundAssignmentAtFindTime();
+	void HandleCompoundAssignmentAtInstructionEndTime();
+	void CheckForSimpleCompoundAssignment();
 };

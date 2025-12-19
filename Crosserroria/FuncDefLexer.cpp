@@ -29,7 +29,7 @@ void Lexer::ParseFunctionLevelSymbol(std::string symbolName) {
 	if (semicolonSeperator) { HandleInstructionSeperationSymbol(false); return; }
 	if (symbolName != " " && functionLevelMember.isInLoopIndexVariableName) { functionLevelMember.indexVariableName = symbolName; functionLevelMember.isInLoopIndexVariableName = false; return; }
 
-	if (symbolName == "?" && isNotInStr) { ParseConditionalSymbol(); return; }
+	if (symbolName == "?" && isNotInStr && ParseConditionalSymbol()) return;
 	if ((symbolName == ":" || isAssignment) && isNotInStr) HandleExpressionOnSpecialFunctionLevelSymbol(specialFunctionSymbol);
 	if (symbolName == ":" && isNotInStr) return;
 
@@ -42,10 +42,9 @@ void Lexer::HandleExpressionOnSpecialFunctionLevelSymbol(std::string symbolName)
 	std::string latestSymbol = functionLevelMember.underlyingExpression.previouslyParsedOperand.operandContents;
 	functionLevelMember.underlyingExpression = Expression();
 
-	if (symbolName == ":" || symbolName == "!") {
-		functionLevelMember.instructionType = InstructionType::Declaration;
+	if (symbolName == ":") {
 		functionLevelMember.variableName = DataType(latestSymbol);
-		functionLevelMember.isDeclaredVariableConstant = symbolName == "!";
+		functionLevelMember.instructionType = InstructionType::Declaration;
 		return;
 	}
 
@@ -85,8 +84,14 @@ bool Lexer::DetermineIfAssigning(std::string symbolName) {
 	}
 
 	if (isAssignment) functionLevelMember.encounteredAssignment = true;
+	if (isAssignment && functionLevelMember.underlyingExpression.currentBinaryOperator != "=") HandleCompoundAssignmentAtFindTime();
 	if (symbolName == "=" && !functionLevelMember.potentiallyEncounteredAssignmentSymbol && !determiningIfIsAssignment) functionLevelMember.potentiallyEncounteredAssignmentSymbol = true;
 	return isAssignment;
+}
+
+void Lexer::HandleCompoundAssignmentAtFindTime() {
+	std::string assignmentOp = functionLevelMember.underlyingExpression.currentBinaryOperator;
+	compoundOperator = assignmentOp.substr(0, assignmentOp.size()-1);
 }
 
 FunctionLevelInstruction::operator std::string() const {
@@ -133,6 +138,7 @@ void Lexer::InitializeFunctionLevelMember() {
 	functionLevelMember = FunctionLevelInstruction();
 	functionLevelSymbolHistory.clear();
 	functionLevelMember.nestingLevel = currentNestingLevel;
+	compoundOperator = "";
 }
 
 FunctionLevelInstruction::FunctionLevelInstruction() {
@@ -144,11 +150,12 @@ FunctionLevelInstruction::FunctionLevelInstruction() {
 	conditionalType = ConditionalType::Unknown;
 }
 
-void Lexer::ParseConditionalSymbol() {
+bool Lexer::ParseConditionalSymbol() {
 	int historySize = functionLevelSymbolHistory.size();
-	if (historySize == 1) { SetupConditional(ConditionalType::IfStatement); return; }
+	if (historySize == 1) { SetupConditional(ConditionalType::IfStatement); return true; }
 	std::string firstSymbol = functionLevelSymbolHistory[0];
-	if (firstSymbol == "!" && historySize == 2) { SetupConditional(ConditionalType::ElifStatement); functionLevelMember.underlyingExpression = Expression(); }
+	if (firstSymbol == "!" && historySize == 2) { SetupConditional(ConditionalType::ElifStatement); functionLevelMember.underlyingExpression = Expression(); return true; }
+	return false;
 }
 
 void Lexer::SetupConditional(ConditionalType conditionalType) {

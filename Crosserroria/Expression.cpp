@@ -86,7 +86,7 @@ void Expression::ParseRightParenthesis() {
 
 void Expression::EndBinaryOperator() {
 	if (currentBinaryOperator == "") return;
-	if (currentBinaryOperator == "!") { constantDeclarationEncountered = true; return; }
+	if (currentBinaryOperator == "!" && ternaryConditionalNestingLevel == 0) { constantDeclarationEncountered = true; currentBinaryOperator = ""; return; }
 	std::string currentLengthOperator = "";
 	int longestValidOpLength = 0;
 	for (int i = 0; i < currentBinaryOperator.size(); i++) {
@@ -97,7 +97,16 @@ void Expression::EndBinaryOperator() {
 
 	std::string longestValidOperator = currentBinaryOperator.substr(0, longestValidOpLength);
 	if (longestValidOpLength > 0) {
-		AddOperator(OperatorType::BinaryOperator, longestValidOperator);
+		OperatorType typeOfOperator = OperatorType::BinaryOperator;
+		std::string usedOperatorName = longestValidOperator;
+		if (longestValidOperator == "?") typeOfOperator = OperatorType::TernaryOperatorValueOnSuccess;
+		if (longestValidOperator == "!") typeOfOperator = OperatorType::TernaryOperatorValueOnFail;
+		if (typeOfOperator != OperatorType::BinaryOperator) {
+			usedOperatorName = "";
+			ternaryConditionalNestingLevel += typeOfOperator == OperatorType::TernaryOperatorValueOnSuccess ? 1 : -1;
+		}
+		AddOperator(typeOfOperator, usedOperatorName);
+
 		for (int i = longestValidOpLength; i < currentBinaryOperator.size(); i++) {
 			char ch = currentLengthOperator[i];
 			AddOperator(OperatorType::LeftUnaryOperator, std::string(1, ch));

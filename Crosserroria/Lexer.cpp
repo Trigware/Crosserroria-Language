@@ -77,6 +77,7 @@ void Lexer::EndFunctionLevelMember(bool arrowSyntax) {
 	int contentsSize = functionLevelMember.underlyingExpression.expressionContents.size(), historySize = functionLevelSymbolHistory.size();
 	bool latestTokenOperator = !functionLevelMember.underlyingExpression.latestExpressionElementIsOperand;
 	bool isElse = contentsSize == 1 && latestTokenOperator && functionLevelMember.underlyingExpression.latestOperator.operatorContents == "!";
+
 	if (arrowSyntax) isElse = contentsSize == 2 && latestTokenOperator && functionLevelSymbolHistory[historySize - 2] == "!" && functionLevelSymbolHistory[historySize - 1] == "=";
 	if (isElse) {
 		functionLevelMember.instructionType = InstructionType::Conditional;
@@ -85,8 +86,36 @@ void Lexer::EndFunctionLevelMember(bool arrowSyntax) {
 	}
 	if (functionLevelMember.isWrappedInLoop) ParseLoopAdjecentStatement();
 
+	CheckForSimpleCompoundAssignment();
+	if (compoundOperator != "") HandleCompoundAssignmentAtInstructionEndTime();
 	if (functionLevelMember.instructionType == InstructionType::Declaration && functionLevelMember.variableDeclarationType.typeName == "") CorrectDeclarationWithoutValue();
 	if (functionLevelMember.instructionType != InstructionType::Unknown) listOfTokenizedInstructions.push_back(functionLevelMember);
+}
+
+void Lexer::CheckForSimpleCompoundAssignment() {
+	if (functionLevelMember.instructionType != InstructionType::PlainExpression || functionLevelMember.underlyingExpression.expressionContents.size() != 1) return;
+	std::variant<Operand, Operator> firstElement = functionLevelMember.underlyingExpression.expressionContents[0];
+	if (!std::holds_alternative<Operand>(firstElement)) return;
+	Operand firstOperand = std::get<Operand>(firstElement);
+	if (firstOperand.operandType != OperandType::Variable) return;
+	functionLevelMember.instructionType = InstructionType::Assignment;
+	functionLevelMember.variableName = firstOperand.operandContents;
+	std::string appropriateOperator = "";
+	if (functionLevelMember.underlyingExpression.currentBinaryOperator == "++") appropriateOperator = "+";
+	if (functionLevelMember.underlyingExpression.currentBinaryOperator == "--") appropriateOperator = "-";
+	if (appropriateOperator == "") return;
+	functionLevelMember.underlyingExpression.expressionContents.push_back(Operator(OperatorType::BinaryOperator, appropriateOperator));
+	functionLevelMember.underlyingExpression.expressionContents.push_back(Operand(OperandType::IntegerLiteral, "1"));
+}
+
+void Lexer::HandleCompoundAssignmentAtInstructionEndTime() {
+	int elementCount = functionLevelMember.underlyingExpression.expressionContents.size();
+	if (elementCount > 1) {
+		functionLevelMember.underlyingExpression.expressionContents.insert(functionLevelMember.underlyingExpression.expressionContents.begin(), Operator(OperatorType::LeftParenthesis));
+		functionLevelMember.underlyingExpression.expressionContents.push_back(Operator(OperatorType::RightParenthesis));
+	}
+	functionLevelMember.underlyingExpression.expressionContents.insert(functionLevelMember.underlyingExpression.expressionContents.begin(), Operator(OperatorType::BinaryOperator, compoundOperator));
+	functionLevelMember.underlyingExpression.expressionContents.insert(functionLevelMember.underlyingExpression.expressionContents.begin(), Operand(OperandType::Variable, functionLevelMember.variableName));
 }
 
 void Lexer::ParseLoopAdjecentStatement() {
@@ -287,6 +316,8 @@ Operator::operator std::string() const {
 		case OperatorType::RightParenthesis: result += "Right Paren"; break;
 		case OperatorType::FunctionParameterSeperator: result += "Parameter Seperator"; break;
 		case OperatorType::FunctionClosing: result += "Function Closing"; break;
+		case OperatorType::TernaryOperatorValueOnSuccess: result += "Ternary Success"; break;
+		case OperatorType::TernaryOperatorValueOnFail: result += "Ternary Failure"; break;
 	}
 	return result + ")";
 }

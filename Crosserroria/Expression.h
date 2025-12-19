@@ -39,7 +39,9 @@ enum class OperatorType {
 	LeftParenthesis,
 	RightParenthesis,
 	FunctionParameterSeperator,
-	FunctionClosing
+	FunctionClosing,
+	TernaryOperatorValueOnSuccess,
+	TernaryOperatorValueOnFail
 };
 
 enum class TokenType {
@@ -76,10 +78,10 @@ public:
 	Expression();
 	Operand currentOperand, previouslyParsedOperand;
 	Operator latestOperator;
-	int currentBracketNestingLevel;
+	int currentBracketNestingLevel = 0, ternaryConditionalNestingLevel = 0;
 	bool constantDeclarationEncountered = false, latestExpressionElementIsOperand = false;
 	std::string currentBinaryOperator = "";
-	std::vector<std::string> validBinaryOperators = { "+", "-", "*", "/", "%", "^", "==", "!=", ">", "<", "<=", ">=", "&&", "||", "->", "?>", "|", "&", "..", "..="};
+	std::vector<std::string> validBinaryOperators = { "+", "-", "*", "/", "%", "^", "==", "!=", ">", "<", "<=", ">=", "&&", "||", "->", "?>", "|", "&", "..", "..=", "?", "!" };
 	void ParseNextSymbol(std::string symbolName);
 	void EndExpression();
 private:
