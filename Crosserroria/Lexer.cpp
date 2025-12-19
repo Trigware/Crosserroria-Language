@@ -77,6 +77,10 @@ void Lexer::EndFunctionLevelMember(bool arrowSyntax) {
 	int contentsSize = functionLevelMember.underlyingExpression.expressionContents.size(), historySize = functionLevelSymbolHistory.size();
 	bool latestTokenOperator = !functionLevelMember.underlyingExpression.latestExpressionElementIsOperand;
 	bool isElse = contentsSize == 1 && latestTokenOperator && functionLevelMember.underlyingExpression.latestOperator.operatorContents == "!";
+	bool isCaseStatement = IsInSwitchCase();
+	functionLevelMember.isDefaultCase = isCaseStatement && contentsSize == 1 && std::holds_alternative<Operator>(functionLevelMember.underlyingExpression.expressionContents[0])
+		&& std::get<Operator>(functionLevelMember.underlyingExpression.expressionContents[0]).operatorContents == "!";
+ 	if (isCaseStatement) isElse = false;
 
 	if (arrowSyntax) isElse = contentsSize == 2 && latestTokenOperator && functionLevelSymbolHistory[historySize - 2] == "!" && functionLevelSymbolHistory[historySize - 1] == "=";
 	if (isElse) {
@@ -88,8 +92,16 @@ void Lexer::EndFunctionLevelMember(bool arrowSyntax) {
 
 	CheckForSimpleCompoundAssignment();
 	if (compoundOperator != "") HandleCompoundAssignmentAtInstructionEndTime();
+	if (functionLevelMember.couldBeSwitchStatement) HandleSwitchStatement();
 	if (functionLevelMember.instructionType == InstructionType::Declaration && functionLevelMember.variableDeclarationType.typeName == "") CorrectDeclarationWithoutValue();
 	if (functionLevelMember.instructionType != InstructionType::Unknown) listOfTokenizedInstructions.push_back(functionLevelMember);
+}
+
+void Lexer::HandleSwitchStatement() {
+	functionLevelMember.instructionType = InstructionType::SwitchStatement;
+	functionLevelMember.underlyingExpression = functionLevelMember.switchValue.expressionContents;
+	functionLevelMember.switchValue.expressionContents.clear();
+	switchStatementNestingLevels.push_back(currentNestingLevel);
 }
 
 void Lexer::CheckForSimpleCompoundAssignment() {
@@ -98,12 +110,14 @@ void Lexer::CheckForSimpleCompoundAssignment() {
 	if (!std::holds_alternative<Operand>(firstElement)) return;
 	Operand firstOperand = std::get<Operand>(firstElement);
 	if (firstOperand.operandType != OperandType::Variable) return;
-	functionLevelMember.instructionType = InstructionType::Assignment;
 	functionLevelMember.variableName = firstOperand.operandContents;
+
 	std::string appropriateOperator = "";
 	if (functionLevelMember.underlyingExpression.currentBinaryOperator == "++") appropriateOperator = "+";
 	if (functionLevelMember.underlyingExpression.currentBinaryOperator == "--") appropriateOperator = "-";
 	if (appropriateOperator == "") return;
+
+	functionLevelMember.instructionType = InstructionType::Assignment;
 	functionLevelMember.underlyingExpression.expressionContents.push_back(Operator(OperatorType::BinaryOperator, appropriateOperator));
 	functionLevelMember.underlyingExpression.expressionContents.push_back(Operand(OperandType::IntegerLiteral, "1"));
 }
@@ -207,6 +221,7 @@ void Lexer::ParseFunctionSymbol(bool specialSymbol, std::string symbolName) {
 		}
 	}
 
+	bool isDeclaration = symbolName == ":" || symbolName == "!";
 	if (inOptionalParameter) {
 		Expression& currentParameterOptionalValue = currentFunctionParameter.optionalValue.value();
 		Operand currentExpressionOperand = currentParameterOptionalValue.currentOperand;
@@ -215,13 +230,14 @@ void Lexer::ParseFunctionSymbol(bool specialSymbol, std::string symbolName) {
 		if (noNesting && !inString && symbolName == ")") return;
 		if (noNesting && !inString && symbolName == ",") { ParseFunctionParameter(); return; }
 		currentParameterOptionalValue.ParseNextSymbol(symbolName);
+		if (currentParameterOptionalValue.ternaryConditionalNestingLevel > 0) isDeclaration = false;
 		if (inString || currentParameterOptionalValue.currentBracketNestingLevel > 0) return;
 	}
 
 	if (symbolName == ",") { ParseFunctionParameter(); return; }
 	if (symbolName == " ") return;
 	if (symbolName == "=") { inOptionalParameter = true; currentFunctionParameter.optionalValue = Expression(); return; }
-	if (symbolName == ":" || symbolName == "!") { previousToken = TokenType::AfterParameterName; currentFunctionParameter.isConstant = symbolName == "!"; return; }
+	if (isDeclaration) { previousToken = TokenType::AfterParameterName; currentFunctionParameter.isConstant = symbolName == "!"; return; }
 
 	if (inOptionalParameter) return;
 	if (previousToken == TokenType::BeforeParameterName) currentFunctionParameter.parameterName = symbolName;

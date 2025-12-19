@@ -5,6 +5,8 @@
 
 void Lexer::ParseFunctionLevelSymbol(std::string symbolName) {
 	if (symbolName != " " && functionLevelMember.instructionType == InstructionType::Unknown) functionLevelMember.instructionType = InstructionType::PlainExpression;
+	if (IsInSwitchCase()) { HandleSwitchCases(symbolName); return; }
+	if (HasExitedSwitchStatement()) { switchStatementNestingLevels.clear(); }
 
 	bool isAssignment = DetermineIfAssigning(symbolName);
 	std::string specialFunctionSymbol = symbolName;
@@ -19,8 +21,10 @@ void Lexer::ParseFunctionLevelSymbol(std::string symbolName) {
 	int symbolHistorySize = functionLevelSymbolHistory.size();
 	bool isLoop = symbolName == "@" && symbolHistorySize == 0, isReturnStatement = symbolName == ">" && symbolHistorySize == 0;
 	bool singlelinedLoop = isNotInStr && symbolHistorySize > 0 && functionLevelSymbolHistory[symbolHistorySize - 1] == "=" && symbolName == ">";
+	bool disprovingSwitch = functionLevelMember.couldBeSwitchStatement && symbolName != " " && !semicolonSeperator;
 	if (singlelinedLoop) { HandleInstructionSeperationSymbol(true, true); return; }
 
+	if (disprovingSwitch) { functionLevelMember.couldBeSwitchStatement = false; functionLevelMember.switchValue.expressionContents.clear(); }
 	if (symbolName != " ") functionLevelSymbolHistory.push_back(symbolName);
 	if (isReturnStatement) { functionLevelMember.instructionType = InstructionType::ReturnStatement; return; }
 	if (symbolName == "," && functionLevelMember.underlyingExpression.currentBracketNestingLevel == 0 && functionLevelMember.isWrappedInLoop && isNotInStr) { functionLevelMember.isInLoopIndexVariableName = true; return; }
@@ -40,14 +44,17 @@ void Lexer::ParseFunctionLevelSymbol(std::string symbolName) {
 void Lexer::HandleExpressionOnSpecialFunctionLevelSymbol(std::string symbolName) {
 	functionLevelMember.underlyingExpression.EndExpression();
 	std::string latestSymbol = functionLevelMember.underlyingExpression.previouslyParsedOperand.operandContents;
-	functionLevelMember.underlyingExpression = Expression();
 
 	if (symbolName == ":") {
 		functionLevelMember.variableName = DataType(latestSymbol);
 		functionLevelMember.instructionType = InstructionType::Declaration;
+		functionLevelMember.switchValue = functionLevelMember.underlyingExpression.expressionContents;
+		functionLevelMember.couldBeSwitchStatement = true;
+		functionLevelMember.underlyingExpression = Expression();
 		return;
 	}
 
+	functionLevelMember.underlyingExpression = Expression();
 	if (functionLevelMember.instructionType == InstructionType::Declaration) { functionLevelMember.variableDeclarationType = DataType(latestSymbol); return; }
 	functionLevelMember.instructionType = InstructionType::Assignment;
 	functionLevelMember.variableName = DataType(latestSymbol);
@@ -118,8 +125,9 @@ FunctionLevelInstruction::operator std::string() const {
 		case LoopControlFlow::Break: loopControlFlowAsStr = "BREAK"; break;
 	}
 
-	std::string returnValueMessage = expressionTextPure;
+	std::string returnValueMessage = expressionTextPure, switchCaseMessage = expressionTextPure;
 	if (returnValueMessage == "") returnValueMessage = "void";
+	if (isDefaultCase) switchCaseMessage = "default";
 
 	switch (instructionType) {
 		case InstructionType::PlainExpression: output = "PlainExpression[" + expressionTextPure; break;
@@ -129,6 +137,8 @@ FunctionLevelInstruction::operator std::string() const {
 		case InstructionType::LoopStatement: output = "Loop[" + expressionTextPure + iterNameStr + iterTypeStr + indexVarNameStr; break;
 		case InstructionType::LoopControlFlow: output = "LoopCF[type: " + loopControlFlowAsStr + ", loopCount: " + std::to_string(loopCount); break;
 		case InstructionType::ReturnStatement: output = "Return[" + returnValueMessage; break;
+		case InstructionType::SwitchStatement: output = "Switch[" + expressionTextPure; break;
+		case InstructionType::SwitchCase: output = "Case[" + switchCaseMessage; break;
 	}
 	output += ", nesting: " + std::to_string(nestingLevel) + "]";
 	return output;
@@ -169,4 +179,25 @@ void Lexer::HandleInstructionSeperationSymbol(bool createsScope, bool arrowSynta
 	InitializeFunctionLevelMember();
 	functionLevelMember.nestingLevel = previousNestingLevel;
 	if (createsScope) functionLevelMember.nestingLevel++;
+}
+
+void Lexer::HandleSwitchCases(std::string symbolName) {
+	functionLevelMember.instructionType = InstructionType::SwitchCase;
+	bool isInStr = functionLevelMember.underlyingExpression.currentOperand.operandType != OperandType::StringLiteral;
+	if (symbolName == ":" && isInStr) { HandleInstructionSeperationSymbol(true); return; }
+	functionLevelMember.underlyingExpression.ParseNextSymbol(symbolName);
+}
+
+bool Lexer::HasExitedSwitchStatement() {
+	for (int inspectedSwitchNestingLevel : switchStatementNestingLevels) {
+		if (functionLevelMember.nestingLevel > inspectedSwitchNestingLevel) return false;
+	}
+	return true;
+}
+
+bool Lexer::IsInSwitchCase() {
+	for (int inspectedSwitchNestingLevel : switchStatementNestingLevels) {
+		if (inspectedSwitchNestingLevel + 1 == functionLevelMember.nestingLevel) return true;
+	}
+	return false;
 }

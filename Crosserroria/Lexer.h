@@ -54,6 +54,7 @@ private:
 	FunctionParameter currentFunctionParameter;
 	bool assignmentEncountered = false, parametersEncountered = false, inOptionalParameter = false, encounteredNonTab = false;
 	int normalSymbolsParsed = 0, symbolsParsedThisLine = 0, currentNestingLevel = 0;
+	std::vector<int> switchStatementNestingLevels{};
 	void ParseFieldSymbol(bool specialSymbol, std::string symbolName);
 	void ParseFunctionSymbol(bool specialSymbol, std::string symbolName);
 	void ParseFunctionParameter();
@@ -72,4 +73,8 @@ private:
 	void HandleCompoundAssignmentAtFindTime();
 	void HandleCompoundAssignmentAtInstructionEndTime();
 	void CheckForSimpleCompoundAssignment();
+	void HandleSwitchStatement();
+	void HandleSwitchCases(std::string symbolName);
+	bool HasExitedSwitchStatement();
+	bool IsInSwitchCase();
 };

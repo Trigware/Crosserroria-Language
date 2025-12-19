@@ -74,7 +74,7 @@ class Expression {
 public:
 	std::vector<std::variant<Operand, Operator>> expressionContents;
 	operator std::string() const;
-	Expression(std::vector<std::variant<Operand, Operator>> expr) : expressionContents(expr) {}
+	Expression(const std::vector<std::variant<Operand, Operator>>& expr) : expressionContents(expr) {}
 	Expression();
 	Operand currentOperand, previouslyParsedOperand;
 	Operator latestOperator;

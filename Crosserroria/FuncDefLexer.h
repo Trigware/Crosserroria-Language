@@ -12,6 +12,8 @@ enum class InstructionType {
 	LoopStatement,
 	LoopControlFlow,
 	ReturnStatement,
+	SwitchStatement,
+	SwitchCase
 };
 
 enum class ConditionalType {
@@ -29,12 +31,12 @@ enum class LoopControlFlow {
 
 struct FunctionLevelInstruction {
 	FunctionLevelInstruction();
-	Expression underlyingExpression;
+	Expression underlyingExpression, switchValue;
 	InstructionType instructionType = InstructionType::Unknown;
 	int nestingLevel = 0, loopCount = 0;
 	std::string variableName = "", indexVariableName = "";
 	DataType variableDeclarationType;
-	bool isDeclaredVariableConstant = false;
+	bool isDeclaredVariableConstant = false, couldBeSwitchStatement = false, isDefaultCase = false;
 	bool potentiallyEncounteredAssignmentSymbol = false, encounteredAssignment = false, isUninitialized = false, isWrappedInLoop = false, isInLoopIndexVariableName = false;
 	ConditionalType conditionalType = ConditionalType::Unknown;
 	LoopControlFlow loopControlFlowType = LoopControlFlow::Unknown;

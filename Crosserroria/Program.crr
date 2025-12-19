@@ -1,2 +1,12 @@
-?^*()
-	nestingLevel += previousBracket == "(" ? 1 ! -1
+S_dayOfWeek(dayNum!Z)
+	result: S = ""
+	dayNum:
+		0: result = "Monday"
+			nestedSwitch:
+				0: "zero"
+				1: "one"
+				!: "error"
+		1: result = "Tuesday"
+		2: result = "Wednesday"
+		!: result = "Invalid day number!"
+	> result
