@@ -83,10 +83,33 @@ void Lexer::EndFunctionLevelMember(bool arrowSyntax) {
 		functionLevelMember.conditionalType = ConditionalType::ElseStatement;
 		functionLevelMember.underlyingExpression.expressionContents.clear();
 	}
-	if (functionLevelMember.isWrappedInLoop) functionLevelMember.instructionType = InstructionType::LoopStatement;
+	if (functionLevelMember.isWrappedInLoop) ParseLoopAdjecentStatement();
 
 	if (functionLevelMember.instructionType == InstructionType::Declaration && functionLevelMember.variableDeclarationType.typeName == "") CorrectDeclarationWithoutValue();
 	if (functionLevelMember.instructionType != InstructionType::Unknown) listOfTokenizedInstructions.push_back(functionLevelMember);
+}
+
+void Lexer::ParseLoopAdjecentStatement() {
+	bool isLoopStatement = functionLevelMember.variableName != "" && functionLevelMember.variableDeclarationType.typeName != "" && functionLevelMember.indexVariableName != "";
+	if (!isLoopStatement) {
+		int expressionElements = functionLevelMember.underlyingExpression.expressionContents.size();
+		functionLevelMember.loopCount = 1;
+		bool encounteredLoopAbsence = false;
+		std::string postLoopContents = "";
+		for (int i = 0; i < expressionElements; i++) {
+			std::variant<Operand, Operator> expressionElement = functionLevelMember.underlyingExpression.expressionContents[i];
+			if (!std::holds_alternative<Operator>(expressionElement)) break;
+			Operator currentOperator = std::get<Operator>(expressionElement);
+			if (currentOperator.operatorContents == "@" && !encounteredLoopAbsence) functionLevelMember.loopCount++;
+			else encounteredLoopAbsence = true;
+			if (encounteredLoopAbsence) postLoopContents += currentOperator.operatorContents;
+		}
+		if (postLoopContents == "!") functionLevelMember.loopControlFlowType = LoopControlFlow::Break;
+		if (postLoopContents == "->") functionLevelMember.loopControlFlowType = LoopControlFlow::Continue;
+		functionLevelMember.instructionType = InstructionType::LoopControlFlow;
+		if (functionLevelMember.loopControlFlowType != LoopControlFlow::Unknown) return;
+	}
+	functionLevelMember.instructionType = InstructionType::LoopStatement;
 }
 
 void Lexer::HandleSymbol(std::string& symbolName) {

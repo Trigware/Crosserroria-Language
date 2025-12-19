@@ -17,11 +17,12 @@ void Lexer::ParseFunctionLevelSymbol(std::string symbolName) {
 	bool colonSeperator = (symbolName == ":" && (functionLevelMember.instructionType == InstructionType::Conditional || isElse)) && isNotInStr;
 	bool semicolonSeperator = symbolName == ";" && isNotInStr;
 	int symbolHistorySize = functionLevelSymbolHistory.size();
-	bool isLoop = symbolName == "@" && symbolHistorySize == 0;
+	bool isLoop = symbolName == "@" && symbolHistorySize == 0, isReturnStatement = symbolName == ">" && symbolHistorySize == 0;
 	bool singlelinedLoop = isNotInStr && symbolHistorySize > 0 && functionLevelSymbolHistory[symbolHistorySize - 1] == "=" && symbolName == ">";
 	if (singlelinedLoop) { HandleInstructionSeperationSymbol(true, true); return; }
 
 	if (symbolName != " ") functionLevelSymbolHistory.push_back(symbolName);
+	if (isReturnStatement) { functionLevelMember.instructionType = InstructionType::ReturnStatement; return; }
 	if (symbolName == "," && functionLevelMember.underlyingExpression.currentBracketNestingLevel == 0 && functionLevelMember.isWrappedInLoop && isNotInStr) { functionLevelMember.isInLoopIndexVariableName = true; return; }
 	if (isLoop) { functionLevelMember.isWrappedInLoop = true; return; }
 	if (colonSeperator) { HandleInstructionSeperationSymbol(true); return; }
@@ -106,12 +107,23 @@ FunctionLevelInstruction::operator std::string() const {
 		case ConditionalType::ElseStatement: conditonalTypeAsStr = "ELSE"; break;
 	}
 
+	std::string loopControlFlowAsStr = "";
+	switch (loopControlFlowType) {
+		case LoopControlFlow::Continue: loopControlFlowAsStr = "CONTINUE"; break;
+		case LoopControlFlow::Break: loopControlFlowAsStr = "BREAK"; break;
+	}
+
+	std::string returnValueMessage = expressionTextPure;
+	if (returnValueMessage == "") returnValueMessage = "void";
+
 	switch (instructionType) {
 		case InstructionType::PlainExpression: output = "PlainExpression[" + expressionTextPure; break;
 		case InstructionType::Assignment: output = "Assignment[name: " + variableName + expressionText; break;
 		case InstructionType::Declaration: output = "Declaration[name: " + variableName + ", type: " + (std::string)variableDeclarationType + mutabilityText + expressionText + uninitializedStr; break;
 		case InstructionType::Conditional: output = "Conditional[type: " + conditonalTypeAsStr + expressionText; break;
 		case InstructionType::LoopStatement: output = "Loop[" + expressionTextPure + iterNameStr + iterTypeStr + indexVarNameStr; break;
+		case InstructionType::LoopControlFlow: output = "LoopCF[type: " + loopControlFlowAsStr + ", loopCount: " + std::to_string(loopCount); break;
+		case InstructionType::ReturnStatement: output = "Return[" + returnValueMessage; break;
 	}
 	output += ", nesting: " + std::to_string(nestingLevel) + "]";
 	return output;

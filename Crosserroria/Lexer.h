@@ -68,4 +68,5 @@ private:
 	void SetupConditional(ConditionalType conditonalType);
 	void HandleInstructionSeperationSymbol(bool createsScope, bool arrowSyntax = false);
 	void EndFunctionLevelMember(bool arrowSyntax = false);
+	void ParseLoopAdjecentStatement();
 };
