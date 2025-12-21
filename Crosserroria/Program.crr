@@ -1,0 +1,8 @@
+^StringType:
+	Regular, Verbatim, Format
+
+^IntegerType:
+	Regular, Octal, Hexadecimal
+
+^Operand:
+	Unknown, String(value:S, kind: StringType)
