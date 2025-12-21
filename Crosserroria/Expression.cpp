@@ -87,6 +87,8 @@ void Expression::ParseRightParenthesis() {
 void Expression::EndBinaryOperator() {
 	if (currentBinaryOperator == "") return;
 	if (currentBinaryOperator == "!" && ternaryConditionalNestingLevel == 0) { constantDeclarationEncountered = true; currentBinaryOperator = ""; return; }
+	if (currentBinaryOperator == ".") { AddOperator(OperatorType::AttributeAccess, ""); currentBinaryOperator = ""; return; }
+
 	std::string currentLengthOperator = "";
 	int longestValidOpLength = 0;
 	for (int i = 0; i < currentBinaryOperator.size(); i++) {
@@ -178,4 +180,12 @@ void Operand::Reset() {
 void DataType::Reset() { typeName = ""; }
 void FunctionParameter::Reset() {
 	*this = FunctionParameter();
+}
+
+bool Expression::NotInString() {
+	return currentOperand.operandType != OperandType::StringLiteral;
+}
+
+std::string Expression::GetLatestSymbol() {
+	return currentOperand.operandContents;
 }

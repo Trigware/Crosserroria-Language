@@ -27,10 +27,13 @@ void Lexer::ParseFunctionLevelSymbol(std::string symbolName) {
 	bool isAssignment = DetermineIfAssigning(symbolName);
 	std::string specialFunctionSymbol = symbolName;
 	if (isAssignment) specialFunctionSymbol = "=";
-	bool isNotInStr = functionLevelMember.underlyingExpression.currentOperand.operandType != OperandType::StringLiteral;
+	bool isNotInStr = functionLevelMember.underlyingExpression.NotInString();
 	bool isElse = symbolName == ":" && functionLevelMember.underlyingExpression.expressionContents.size() == 1 &&
 		!functionLevelMember.underlyingExpression.latestExpressionElementIsOperand &&
 		functionLevelMember.underlyingExpression.latestOperator.operatorContents == "!";
+
+	if (symbolName == "." && isNotInStr && functionLevelMember.instructionType == InstructionType::PlainExpression)
+		functionLevelMember.assignmentAttributeNameList.push_back(functionLevelMember.underlyingExpression.GetLatestSymbol());
 
 	bool colonSeperator = (symbolName == ":" && (functionLevelMember.instructionType == InstructionType::Conditional || isElse)) && isNotInStr;
 	bool semicolonSeperator = symbolName == ";" && isNotInStr;
@@ -59,10 +62,10 @@ void Lexer::ParseFunctionLevelSymbol(std::string symbolName) {
 
 void Lexer::HandleExpressionOnSpecialFunctionLevelSymbol(std::string symbolName) {
 	functionLevelMember.underlyingExpression.EndExpression();
-	std::string latestSymbol = functionLevelMember.underlyingExpression.previouslyParsedOperand.operandContents;
+	std::string latestSymbol = functionLevelMember.underlyingExpression.GetLatestSymbol();
 
 	if (symbolName == ":") {
-		functionLevelMember.variableName = DataType(latestSymbol);
+		functionLevelMember.variableName = latestSymbol;
 		functionLevelMember.instructionType = InstructionType::Declaration;
 		functionLevelMember.switchValue = functionLevelMember.underlyingExpression.expressionContents;
 		functionLevelMember.couldBeSwitchStatement = true;
@@ -73,7 +76,11 @@ void Lexer::HandleExpressionOnSpecialFunctionLevelSymbol(std::string symbolName)
 	functionLevelMember.underlyingExpression = Expression();
 	if (functionLevelMember.instructionType == InstructionType::Declaration) { functionLevelMember.variableDeclarationType = DataType(latestSymbol); return; }
 	functionLevelMember.instructionType = InstructionType::Assignment;
-	functionLevelMember.variableName = DataType(latestSymbol);
+	functionLevelMember.variableName = latestSymbol;
+
+	if (functionLevelSymbolHistory.size() == 0) return;
+	std::string latestAttribute = functionLevelSymbolHistory[functionLevelSymbolHistory.size() - 3]; // By last symbol it recognited assignment, second last is equals, third last is last attribute
+	functionLevelMember.assignmentAttributeNameList.push_back(latestAttribute);
 }
 
 void Lexer::CorrectDeclarationWithoutValue() {

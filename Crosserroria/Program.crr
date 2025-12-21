@@ -1,8 +1,12 @@
-^StringType:
-	Regular, Verbatim, Format
+^StringKind:
+	Unknown = -1, Regular, Verbatim, Format
 
-^IntegerType:
-	Regular, Octal, Hexadecimal
+^IntegerKind:
+	Unknown = -1, Decimal, Octal, Hexadecimal
 
 ^Operand:
-	Unknown, String(value:S, kind: StringType)
+	Unknown
+	Variable(name!S)
+	Integer(value!Z, kind: IntegerKind = IntegerKind.Decimal)
+	Real(value!R)
+	String(value!S, kind: StringKind = StringKind.Regular)

@@ -24,8 +24,9 @@ struct FunctionParameter {
 struct EnumMember {
 	std::string memberName = "";
 	std::vector<FunctionParameter> associatedData;
+	std::optional<Expression> underlyingExpression = std::nullopt;
 	EnumMember() = default;
-	bool isData = false;
+	bool inData = false, inExpression = false, inUnderlyingExpression = false;
 	operator std::string() const;
 };
 
@@ -92,4 +93,5 @@ private:
 	void ParseEnumSymbol(const std::string& symbolName);
 	void TerminateEnumParsing();
 	void AddNewEnumMemberDataParameter();
+	void ParseEnumMemberData(const std::string& symbolName, bool notInString);
 };

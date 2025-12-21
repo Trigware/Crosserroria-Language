@@ -57,6 +57,7 @@ Operator::operator std::string() const {
 		case OperatorType::FunctionClosing: result += "Function Closing"; break;
 		case OperatorType::TernaryOperatorValueOnSuccess: result += "Ternary Success"; break;
 		case OperatorType::TernaryOperatorValueOnFail: result += "Ternary Failure"; break;
+		case OperatorType::AttributeAccess: result += "Attribute"; break;
 	}
 	return result + ")";
 }
@@ -127,6 +128,7 @@ EnumMember::operator std::string() const {
 		}
 		output += "]";
 	}
+	if (underlyingExpression.has_value()) output += " = " + (std::string)underlyingExpression.value();
 	return output;
 }
 
@@ -158,9 +160,15 @@ FunctionLevelInstruction::operator std::string() const {
 	if (returnValueMessage == "") returnValueMessage = "void";
 	if (isDefaultCase) switchCaseMessage = "default";
 
+	std::string attributeListAsStr = "";
+	for (int i = 0; i < assignmentAttributeNameList.size(); i++) {
+		attributeListAsStr += assignmentAttributeNameList[i];
+		if (i + 1 != assignmentAttributeNameList.size()) attributeListAsStr += ".";
+	}
+
 	switch (instructionType) {
 		case InstructionType::PlainExpression: output = "PlainExpression[" + expressionTextPure; break;
-		case InstructionType::Assignment: output = "Assignment[name: " + variableName + expressionText; break;
+		case InstructionType::Assignment: output = "Assignment[name: " + attributeListAsStr + expressionText; break;
 		case InstructionType::Declaration: output = "Declaration[name: " + variableName + ", type: " + (std::string)variableDeclarationType + mutabilityText + expressionText + uninitializedStr; break;
 		case InstructionType::Conditional: output = "Conditional[type: " + conditonalTypeAsStr + expressionText; break;
 		case InstructionType::LoopStatement: output = "Loop[" + expressionTextPure + iterNameStr + iterTypeStr + indexVarNameStr; break;

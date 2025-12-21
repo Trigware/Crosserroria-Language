@@ -41,7 +41,8 @@ enum class OperatorType {
 	FunctionParameterSeperator,
 	FunctionClosing,
 	TernaryOperatorValueOnSuccess,
-	TernaryOperatorValueOnFail
+	TernaryOperatorValueOnFail,
+	AttributeAccess
 };
 
 enum class TokenType {
@@ -57,14 +58,14 @@ enum class TokenType {
 };
 
 struct Operand {
-	OperandType operandType; std::string operandContents;
+	OperandType operandType = OperandType::Unknown; std::string operandContents;
 	Operand(OperandType type, std::string contents) { operandType = type; operandContents = contents; }
 	Operand() {}
 	operator std::string() const;
 	void Reset();
 };
 struct Operator {
-	OperatorType operatorType; std::string operatorContents;
+	OperatorType operatorType = OperatorType::Unknown; std::string operatorContents;
 	Operator(OperatorType type, std::string contents = "") { operatorType = type; operatorContents = contents; }
 	Operator() {}
 	operator std::string() const;
@@ -84,6 +85,8 @@ public:
 	std::vector<std::string> validBinaryOperators = { "+", "-", "*", "/", "%", "^", "==", "!=", ">", "<", "<=", ">=", "&&", "||", "->", "?>", "|", "&", "..", "..=", "?", "!" };
 	void ParseNextSymbol(std::string symbolName);
 	void EndExpression();
+	bool NotInString();
+	std::string GetLatestSymbol();
 private:
 	void ParseApostrophe();
 	void ParseNumberChar(char ch);
