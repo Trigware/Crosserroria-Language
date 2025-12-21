@@ -77,6 +77,7 @@ ClassLevelMember::operator std::string() const {
 		case MemberType::Function: output = "Function"; break;
 		case MemberType::Field: output = "Field"; break;
 		case MemberType::Enum: output = "Enum"; break;
+		case MemberType::Class: output = "Class"; break;
 	}
 	output += "[";
 
@@ -91,6 +92,7 @@ ClassLevelMember::operator std::string() const {
 		case MemberType::Field:
 			output += "name: " + memberName + ", type: " + (std::string)dataType + ", access: " + accessModifierAsStr + ", ";
 			if (fieldIsConstant) output += "constant"; else output += "mutable";
+			if (autoconstructedField) output += ", autoctor";
 			if (assignedToValue != std::nullopt) output += ", value: " + (std::string)assignedToValue.value(); break;
 		case MemberType::Function:
 			output += "name: " + memberName + ", type: " + (std::string)dataType + ", access: " + accessModifierAsStr + ", params: {";
@@ -111,6 +113,11 @@ ClassLevelMember::operator std::string() const {
 				if (i + 1 < numberOfEnumMembers) output += ", ";
 			}
 			output += "}";
+			break;
+		case MemberType::Class:
+			output += Lexer::GetAttributeListAsString(workingClassSuperClassList);
+			if (!encounteredInheritence) break;
+			output += " inherits " + Lexer::GetAttributeListAsString(inheritanceClassSuperClassList);
 			break;
 		}
 	output += "]";
@@ -160,15 +167,9 @@ FunctionLevelInstruction::operator std::string() const {
 	if (returnValueMessage == "") returnValueMessage = "void";
 	if (isDefaultCase) switchCaseMessage = "default";
 
-	std::string attributeListAsStr = "";
-	for (int i = 0; i < assignmentAttributeNameList.size(); i++) {
-		attributeListAsStr += assignmentAttributeNameList[i];
-		if (i + 1 != assignmentAttributeNameList.size()) attributeListAsStr += ".";
-	}
-
 	switch (instructionType) {
 		case InstructionType::PlainExpression: output = "PlainExpression[" + expressionTextPure; break;
-		case InstructionType::Assignment: output = "Assignment[name: " + attributeListAsStr + expressionText; break;
+		case InstructionType::Assignment: output = "Assignment[name: " + Lexer::GetAttributeListAsString(assignmentAttributeNameList) + expressionText; break;
 		case InstructionType::Declaration: output = "Declaration[name: " + variableName + ", type: " + (std::string)variableDeclarationType + mutabilityText + expressionText + uninitializedStr; break;
 		case InstructionType::Conditional: output = "Conditional[type: " + conditonalTypeAsStr + expressionText; break;
 		case InstructionType::LoopStatement: output = "Loop[" + expressionTextPure + iterNameStr + iterTypeStr + indexVarNameStr; break;
@@ -178,6 +179,15 @@ FunctionLevelInstruction::operator std::string() const {
 		case InstructionType::SwitchCase: output = "Case[" + switchCaseMessage; break;
 	}
 	output += ", nesting: " + std::to_string(nestingLevel) + "]";
+	return output;
+}
+
+std::string Lexer::GetAttributeListAsString(const std::vector<std::string>& attributeList) {
+	std::string output = "";
+	for (int i = 0; i < attributeList.size(); i++) {
+		output += attributeList[i];
+		if (i + 1 != attributeList.size()) output += ".";
+	}
 	return output;
 }
 

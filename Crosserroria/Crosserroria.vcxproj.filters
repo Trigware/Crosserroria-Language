@@ -30,7 +30,7 @@
     <ClCompile Include="FuncDefLexer.cpp">
       <Filter>Zdrojové soubory</Filter>
     </ClCompile>
-    <ClCompile Include="Enum.cpp">
+    <ClCompile Include="EnumLexer.cpp">
       <Filter>Zdrojové soubory</Filter>
     </ClCompile>
     <ClCompile Include="Function.cpp">

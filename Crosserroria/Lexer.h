@@ -7,7 +7,8 @@ enum class MemberType {
 	Unknown,
 	Function,
 	Field,
-	Enum
+	Enum,
+	Class
 };
 
 struct FunctionParameter {
@@ -36,8 +37,9 @@ struct ClassLevelMember {
 	DataType dataType;
 	AccessModifier accessModifier = AccessModifier::Unknown;
 
-	bool fieldIsConstant = false, isAlgebraic = false;
+	bool fieldIsConstant = false, isAlgebraic = false, encounteredInheritence = false, autoconstructedField = false;
 	std::optional<Expression> assignedToValue = std::nullopt;
+	std::vector<std::string> workingClassSuperClassList, inheritanceClassSuperClassList{};
 
 	std::vector<FunctionParameter> functionParameters = {};
 	std::vector<EnumMember> enumMembers = {};
@@ -51,6 +53,7 @@ public:
 	void ParseScript(std::string filePath);
 	static bool IsNumber(char ch);
 	static bool IsRegularSymbolChar(char ch);
+	static std::string GetAttributeListAsString(const std::vector<std::string>& attributeList);
 private:
 	std::vector<std::variant<ClassLevelMember, FunctionLevelInstruction>> listOfTokenizedInstructions;
 	std::vector<std::string> functionLevelSymbolHistory;
@@ -64,7 +67,8 @@ private:
 	void HandleStartFunctionSymbol(std::string symbolName);
 	TokenType previousToken = TokenType::None;
 	FunctionParameter currentFunctionParameter, currentEnumDataParameter;
-	bool assignmentEncountered = false, parametersEncountered = false, inOptionalParameter = false, encounteredNonTab = false;
+	bool assignmentEncountered = false, parametersEncountered = false, inOptionalParameter = false,
+		encounteredNonTab = false, canBeClassDeclaration = false;
 	int normalSymbolsParsed = 0, symbolsParsedThisLine = 0, currentNestingLevel = 0;
 	std::vector<int> switchStatementNestingLevels{};
 	void ParseFieldSymbol(bool specialSymbol, std::string symbolName);
@@ -94,4 +98,9 @@ private:
 	void TerminateEnumParsing();
 	void AddNewEnumMemberDataParameter();
 	void ParseEnumMemberData(const std::string& symbolName, bool notInString);
+	void TerminateCurrentClassLevelMember();
+	std::vector<std::string>& GetActiveSuperClassList();
+	bool IsCurrentStatementClassDeclaration(const std::string& symbolName);
+	static const int AmountOfEqualsInClassDeclarations = 2;
+	static const int ActualClassNameHistoryOffset = AmountOfEqualsInClassDeclarations + 2, BeforeClassDotSeperatorHistoryOffset = 2;
 };

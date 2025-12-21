@@ -3,6 +3,7 @@
 #include <algorithm>
 #include "Lexer.h"
 #include "FuncDefLexer.h"
+#include <iostream>
 
 Lexer::Lexer() {
 	ParseScript("Program.crr");
@@ -29,7 +30,7 @@ void Lexer::IntitializeOnNewLine() {
 	currentClassLevelMember = ClassLevelMember();
 	currentSymbol = "";
 	previousToken = TokenType::None;
-	assignmentEncountered = parametersEncountered = inOptionalParameter = false;
+	assignmentEncountered = parametersEncountered = inOptionalParameter = canBeClassDeclaration = encounteredNonTab = false;
 	currentFunctionParameter.Reset();
 	currentEnumDataParameter.Reset();
 
@@ -68,11 +69,15 @@ void Lexer::ParseLine(std::string currentLine) {
 		case MemberType::Function: ParseFunctionParameter(); break;
 	}
 
+	TerminateCurrentClassLevelMember();
+	if (currentNestingLevel == 0) return;
+	EndFunctionLevelMember();
+}
+
+void Lexer::TerminateCurrentClassLevelMember() {
 	bool validClassLevelMember = currentNestingLevel == 0 && currentClassLevelMember.memberType != MemberType::Unknown;
 	if (validClassLevelMember && latestSymbol == ":") { currentClassLevelMember.memberType = MemberType::Enum; currentEnumMember = EnumMember(); return; }
 	if (validClassLevelMember) listOfTokenizedInstructions.push_back(currentClassLevelMember);
-	if (currentNestingLevel == 0) return;
-	EndFunctionLevelMember();
 }
 
 void Lexer::HandleSymbol(std::string& symbolName) {
@@ -95,7 +100,28 @@ void Lexer::ParseSymbol(std::string symbolName) {
 	latestSymbol = symbolName;
 	if (currentClassLevelMember.memberType == MemberType::Enum) { ParseEnumSymbol(symbolName); return; }
 	if (currentNestingLevel > 0) { ParseFunctionLevelSymbol(symbolName); return; }
-	if (assignmentEncountered) { (*currentClassLevelMember.assignedToValue).ParseNextSymbol(symbolName); return; }
+
+	if (symbolName != " ") functionLevelSymbolHistory.push_back(symbolName);
+	if (assignmentEncountered) {
+		if (IsCurrentStatementClassDeclaration(symbolName)) {
+			currentClassLevelMember.memberType = MemberType::Class;
+			std::string actualClassName = functionLevelSymbolHistory[functionLevelSymbolHistory.size() - Lexer::ActualClassNameHistoryOffset];
+			GetActiveSuperClassList().push_back(actualClassName);
+		}
+		(*currentClassLevelMember.assignedToValue).ParseNextSymbol(symbolName);
+		return;
+	}
+
+	bool possibleClass = currentClassLevelMember.memberType == MemberType::Field && currentClassLevelMember.dataType.typeName == "" && functionLevelSymbolHistory.size() > 0;
+	bool addingSuperClass = symbolName == "." && possibleClass, encounteredInheritsSymbol = symbolName == ">" && possibleClass;
+	if (addingSuperClass)
+		GetActiveSuperClassList().push_back(functionLevelSymbolHistory[functionLevelSymbolHistory.size() - BeforeClassDotSeperatorHistoryOffset]);
+	if (encounteredInheritsSymbol) {
+		std::string actualBaseClassName = functionLevelSymbolHistory[functionLevelSymbolHistory.size() - BeforeClassDotSeperatorHistoryOffset];
+		currentClassLevelMember.workingClassSuperClassList.push_back(actualBaseClassName);
+		currentClassLevelMember.encounteredInheritence = true;
+	}
+
 	bool specialSymbol = !IsRegularSymbolChar(symbolName[0]) || symbolName == "_";
 	bool isAccessModifier = symbolName == "_" || symbolName == "^";
 	if (!specialSymbol) normalSymbolsParsed++;
@@ -126,7 +152,22 @@ void Lexer::ParseFieldSymbol(bool specialSymbol, std::string symbolName) {
 			previousToken = TokenType::Declaration;
 			currentClassLevelMember.fieldIsConstant = symbolName == "!"; return;
 		}
-		if (symbolName == "=") { previousToken = TokenType::Assignment; assignmentEncountered = true; currentClassLevelMember.assignedToValue = Expression(); return; }
+		if (symbolName == "=") {
+			previousToken = TokenType::Assignment;
+			assignmentEncountered = true;
+			canBeClassDeclaration = true;
+			currentClassLevelMember.assignedToValue = Expression();
+			return;
+		}
+		if (symbolName == ";") {
+			TerminateCurrentClassLevelMember();
+			IntitializeOnNewLine();
+			return;
+		}
+		if (symbolName == "*") {
+			currentClassLevelMember.autoconstructedField = true;
+			return;
+		}
 		return;
 	}
 	switch (previousToken) {
@@ -145,7 +186,8 @@ void Lexer::EndFunctionLevelMember(bool arrowSyntax) {
 		&& std::get<Operator>(functionLevelMember.underlyingExpression.expressionContents[0]).operatorContents == "!";
 	if (isCaseStatement) isElse = false;
 
-	if (arrowSyntax) isElse = contentsSize == 2 && latestTokenOperator && functionLevelSymbolHistory[historySize - 2] == "!" && functionLevelSymbolHistory[historySize - 1] == "=";
+	if (arrowSyntax) isElse = contentsSize == 2 && latestTokenOperator && functionLevelSymbolHistory[historySize - 2] == "!" &&
+		functionLevelSymbolHistory[historySize - 1] == "=";
 	if (isElse) {
 		functionLevelMember.instructionType = InstructionType::Conditional;
 		functionLevelMember.conditionalType = ConditionalType::ElseStatement;
@@ -158,4 +200,18 @@ void Lexer::EndFunctionLevelMember(bool arrowSyntax) {
 	if (functionLevelMember.couldBeSwitchStatement) HandleSwitchStatement();
 	if (functionLevelMember.instructionType == InstructionType::Declaration && functionLevelMember.variableDeclarationType.typeName == "") CorrectDeclarationWithoutValue();
 	if (functionLevelMember.instructionType != InstructionType::Unknown) listOfTokenizedInstructions.push_back(functionLevelMember);
+}
+
+std::vector<std::string>& Lexer::GetActiveSuperClassList() {
+	return currentClassLevelMember.encounteredInheritence ? currentClassLevelMember.inheritanceClassSuperClassList : currentClassLevelMember.workingClassSuperClassList;
+}
+
+bool Lexer::IsCurrentStatementClassDeclaration(const std::string& symbolName) {
+	bool couldBeValid = symbolName == ">" && canBeClassDeclaration;
+	if (!couldBeValid) return false;
+	for (int i = 0; i < Lexer::AmountOfEqualsInClassDeclarations; i++) {
+		int historyIndex = functionLevelSymbolHistory.size() - 2 - i;
+		if (historyIndex < 0 || functionLevelSymbolHistory[historyIndex] != "=") return false;
+	}
+	return true;
 }
