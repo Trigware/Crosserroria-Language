@@ -31,7 +31,16 @@ void Lexer::ParseFunctionLevelSymbol(std::string symbolName) {
 	bool isElse = symbolName == ":" && functionLevelMember.underlyingExpression.expressionContents.size() == 1 &&
 		!functionLevelMember.underlyingExpression.latestExpressionElementIsOperand &&
 		functionLevelMember.underlyingExpression.latestOperator.operatorContents == "!";
+	bool isSpecificParameter = symbolName == ":" && isNotInStr && functionLevelMember.underlyingExpression.leftParenCallsStack.size()
+		&& functionLevelMember.underlyingExpression.leftParenCallsStack.top();
+	bool declarationConstructor = (symbolName == "(" || symbolName == "{") && isNotInStr && functionLevelMember.instructionType == InstructionType::Declaration && functionLevelMember.variableDeclarationType.typeName == "";
+	bool encounteredExpressionOutsideDeclarationConstruction = functionLevelMember.declarationConstruction && functionLevelMember.underlyingExpression.currentBracketNestingLevel == 0;
 
+	if (encounteredExpressionOutsideDeclarationConstruction) return;
+	if (declarationConstructor) {
+		functionLevelMember.variableDeclarationType = functionLevelSymbolHistory[functionLevelSymbolHistory.size() - 1];
+		functionLevelMember.declarationConstruction = true;
+	}
 	if (symbolName == "." && isNotInStr && functionLevelMember.instructionType == InstructionType::PlainExpression)
 		functionLevelMember.assignmentAttributeNameList.push_back(functionLevelMember.underlyingExpression.GetLatestSymbol());
 
@@ -42,6 +51,12 @@ void Lexer::ParseFunctionLevelSymbol(std::string symbolName) {
 	bool singlelinedLoop = isNotInStr && symbolHistorySize > 0 && functionLevelSymbolHistory[symbolHistorySize - 1] == "=" && symbolName == ">";
 	bool disprovingSwitch = functionLevelMember.couldBeSwitchStatement && symbolName != " " && !semicolonSeperator;
 	if (singlelinedLoop) { HandleInstructionSeperationSymbol(true, true); return; }
+	if (isSpecificParameter) {
+		std::string parameterName = functionLevelSymbolHistory[functionLevelSymbolHistory.size() - 1];
+		functionLevelMember.underlyingExpression.currentOperand.Reset();
+		functionLevelMember.underlyingExpression.expressionContents.push_back(Operator(OperatorType::SpecificFunctionParameter, parameterName));
+		return;
+	}
 
 	if (disprovingSwitch) { functionLevelMember.couldBeSwitchStatement = false; functionLevelMember.switchValue.expressionContents.clear(); }
 	if (symbolName != " ") functionLevelSymbolHistory.push_back(symbolName);

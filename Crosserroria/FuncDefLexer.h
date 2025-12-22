@@ -38,7 +38,8 @@ struct FunctionLevelInstruction {
 	std::vector<std::string> assignmentAttributeNameList{};
 	DataType variableDeclarationType;
 	bool isDeclaredVariableConstant = false, couldBeSwitchStatement = false, isDefaultCase = false;
-	bool potentiallyEncounteredAssignmentSymbol = false, encounteredAssignment = false, isUninitialized = false, isWrappedInLoop = false, isInLoopIndexVariableName = false;
+	bool potentiallyEncounteredAssignmentSymbol = false, encounteredAssignment = false, isUninitialized = false,
+		isWrappedInLoop = false, isInLoopIndexVariableName = false, declarationConstruction = false;
 	ConditionalType conditionalType = ConditionalType::Unknown;
 	LoopControlFlow loopControlFlowType = LoopControlFlow::Unknown;
 	operator std::string() const;

@@ -24,7 +24,7 @@
     <ClCompile Include="Expression.h">
       <Filter>Soubory zdrojů</Filter>
     </ClCompile>
-    <ClCompile Include="Expression.cpp">
+    <ClCompile Include="ExpressionLexer.cpp">
       <Filter>Zdrojové soubory</Filter>
     </ClCompile>
     <ClCompile Include="FuncDefLexer.cpp">
@@ -33,7 +33,7 @@
     <ClCompile Include="EnumLexer.cpp">
       <Filter>Zdrojové soubory</Filter>
     </ClCompile>
-    <ClCompile Include="Function.cpp">
+    <ClCompile Include="FunctionLexer.cpp">
       <Filter>Zdrojové soubory</Filter>
     </ClCompile>
     <ClCompile Include="PrettyPrint.cpp">

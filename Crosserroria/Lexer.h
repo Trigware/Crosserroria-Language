@@ -2,13 +2,15 @@
 #include "Expression.h"
 #include "FuncDefLexer.h"
 #include <optional>
+#include <iostream>
 
 enum class MemberType {
 	Unknown,
 	Function,
 	Field,
 	Enum,
-	Class
+	Class,
+	Constructor
 };
 
 struct FunctionParameter {
@@ -37,13 +39,14 @@ struct ClassLevelMember {
 	DataType dataType;
 	AccessModifier accessModifier = AccessModifier::Unknown;
 
-	bool fieldIsConstant = false, isAlgebraic = false, encounteredInheritence = false, autoconstructedField = false;
+	bool fieldIsConstant = false, isAlgebraic = false, encounteredInheritence = false, encounteredConstructor = false;
 	std::optional<Expression> assignedToValue = std::nullopt;
 	std::vector<std::string> workingClassSuperClassList, inheritanceClassSuperClassList{};
 
 	std::vector<FunctionParameter> functionParameters = {};
 	std::vector<EnumMember> enumMembers = {};
 	ClassLevelMember() {}
+	std::string FunctionParamsAsString() const;
 	operator std::string() const;
 };
 
@@ -101,6 +104,7 @@ private:
 	void TerminateCurrentClassLevelMember();
 	std::vector<std::string>& GetActiveSuperClassList();
 	bool IsCurrentStatementClassDeclaration(const std::string& symbolName);
+	void ParsePossibleClassDeclaration();
 	static const int AmountOfEqualsInClassDeclarations = 2;
 	static const int ActualClassNameHistoryOffset = AmountOfEqualsInClassDeclarations + 2, BeforeClassDotSeperatorHistoryOffset = 2;
 };

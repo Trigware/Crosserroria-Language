@@ -39,6 +39,7 @@ Operand::operator std::string() const {
 		case OperandType::StringLiteral: result += "S"; break;
 		case OperandType::TypeLiteral: result += "type"; break;
 		case OperandType::FunctionCall: result += "func"; break;
+		case OperandType::InitializerCall: result += "init"; break;
 	}
 	return result + ")";
 }
@@ -58,6 +59,7 @@ Operator::operator std::string() const {
 		case OperatorType::TernaryOperatorValueOnSuccess: result += "Ternary Success"; break;
 		case OperatorType::TernaryOperatorValueOnFail: result += "Ternary Failure"; break;
 		case OperatorType::AttributeAccess: result += "Attribute"; break;
+		case OperatorType::SpecificFunctionParameter: result += "ParamName"; break;
 	}
 	return result + ")";
 }
@@ -78,6 +80,7 @@ ClassLevelMember::operator std::string() const {
 		case MemberType::Field: output = "Field"; break;
 		case MemberType::Enum: output = "Enum"; break;
 		case MemberType::Class: output = "Class"; break;
+		case MemberType::Constructor: output = "Constructor"; break;
 	}
 	output += "[";
 
@@ -87,20 +90,15 @@ ClassLevelMember::operator std::string() const {
 		case AccessModifier::Public: accessModifierAsStr = "Public"; break;
 	}
 
-	int numberOfParams = functionParameters.size(), numberOfEnumMembers = enumMembers.size();
+	int numberOfEnumMembers = enumMembers.size();
 	switch (memberType) {
 		case MemberType::Field:
 			output += "name: " + memberName + ", type: " + (std::string)dataType + ", access: " + accessModifierAsStr + ", ";
 			if (fieldIsConstant) output += "constant"; else output += "mutable";
-			if (autoconstructedField) output += ", autoctor";
 			if (assignedToValue != std::nullopt) output += ", value: " + (std::string)assignedToValue.value(); break;
 		case MemberType::Function:
 			output += "name: " + memberName + ", type: " + (std::string)dataType + ", access: " + accessModifierAsStr + ", params: {";
-			for (int i = 0; i < numberOfParams; i++) {
-				FunctionParameter parameter = functionParameters[i];
-				output += parameter;
-				if (i + 1 < numberOfParams) output += ", ";
-			}
+			output += FunctionParamsAsString();
 			output += "}";
 			break;
 		case MemberType::Enum:
@@ -118,6 +116,9 @@ ClassLevelMember::operator std::string() const {
 			output += Lexer::GetAttributeListAsString(workingClassSuperClassList);
 			if (!encounteredInheritence) break;
 			output += " inherits " + Lexer::GetAttributeListAsString(inheritanceClassSuperClassList);
+			break;
+		case MemberType::Constructor:
+			output += "access: " + accessModifierAsStr + ", params: {" + FunctionParamsAsString() + "}";
 			break;
 		}
 	output += "]";
@@ -199,4 +200,14 @@ void Lexer::PrintTokenizedInstructions() {
 		if (std::holds_alternative<FunctionLevelInstruction>(member)) currentInstructionAsStr = (std::string)std::get<FunctionLevelInstruction>(member);
 		std::cout << currentInstructionAsStr << std::endl;
 	}
+}
+
+std::string ClassLevelMember::FunctionParamsAsString() const {
+	std::string output = "";
+	for (int i = 0; i < functionParameters.size(); i++) {
+		FunctionParameter parameter = functionParameters[i];
+		output += parameter;
+		if (i + 1 < functionParameters.size()) output += ", ";
+	}
+	return output;
 }

@@ -28,7 +28,8 @@ enum class OperandType {
 	TypeLiteral,
 	UnrecognizedSymbol,
 	ParenthesisContents,
-	FunctionCall
+	FunctionCall,
+	InitializerCall
 };
 
 enum class OperatorType {
@@ -42,7 +43,8 @@ enum class OperatorType {
 	FunctionClosing,
 	TernaryOperatorValueOnSuccess,
 	TernaryOperatorValueOnFail,
-	AttributeAccess
+	AttributeAccess,
+	SpecificFunctionParameter
 };
 
 enum class TokenType {
@@ -75,7 +77,7 @@ class Expression {
 public:
 	std::vector<std::variant<Operand, Operator>> expressionContents;
 	operator std::string() const;
-	Expression(const std::vector<std::variant<Operand, Operator>>& expr) : expressionContents(expr) {}
+	inline Expression(const std::vector<std::variant<Operand, Operator>>& expr) : expressionContents(expr) {}
 	Expression();
 	Operand currentOperand, previouslyParsedOperand;
 	Operator latestOperator;
@@ -87,6 +89,7 @@ public:
 	void EndExpression();
 	bool NotInString();
 	std::string GetLatestSymbol();
+	std::stack<bool> leftParenCallsStack;
 private:
 	void ParseApostrophe();
 	void ParseNumberChar(char ch);
@@ -96,10 +99,9 @@ private:
 	void EndBinaryOperator();
 	void AddOperator(OperatorType newOpType, std::string newOpContents);
 	void AddOperand();
-	void ParseFunctionCall();
+	void ParseFunctionCall(bool regularCall);
 	void ParseNextChar(char ch);
-	void ParseLeftParenthesis();
+	void ParseLeftParenthesis(bool regularCall);
 	void ParseRightParenthesis();
 	void RangeDotOperator();
-	std::stack<bool> leftParenCallsStack;
 };

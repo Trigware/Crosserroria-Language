@@ -42,23 +42,33 @@ void Expression::ParseNextChar(char ch) {
 	if (isUnrecognizedSymbolTerminator) TerminateUnrecognizedSymbolChar();
 
 	if (ch == ',') { expressionContents.push_back(Operator(OperatorType::FunctionParameterSeperator)); return; }
-	if (ch == '(') { ParseLeftParenthesis(); return; }
-	if (ch == ')') { ParseRightParenthesis(); return; }
+	if (ch == '(' || ch == '{') { ParseLeftParenthesis(ch == '('); return; }
+	if (ch == ')' || ch == '}') { ParseRightParenthesis(); return; }
 
 	if (previouslyParsedOperand.operandType == OperandType::Unknown) { AddOperator(OperatorType::LeftUnaryOperator, std::string(1, ch)); return; }
 
 	currentBinaryOperator += ch;
 }
 
-void Expression::ParseLeftParenthesis() {
+void Expression::ParseLeftParenthesis(bool regularCall) {
 	currentBracketNestingLevel++;
 	EndBinaryOperator();
 	bool functionCall = previouslyParsedOperand.operandType == OperandType::Variable && latestExpressionElementIsOperand;
 	leftParenCallsStack.push(functionCall);
-	if (functionCall) { ParseFunctionCall(); return; }
+	if (functionCall) { ParseFunctionCall(regularCall); return; }
 
 	AddOperator(OperatorType::LeftParenthesis, "");
 	previouslyParsedOperand.operandType = OperandType::Unknown;
+}
+
+void Expression::ParseRightParenthesis() {
+	currentBracketNestingLevel--;
+	bool isLatestLeftParenthesisFunctionCall = leftParenCallsStack.top();
+	leftParenCallsStack.pop();
+	OperatorType parenthesisType = isLatestLeftParenthesisFunctionCall ? OperatorType::FunctionClosing : OperatorType::RightParenthesis;
+
+	AddOperator(parenthesisType, "");
+	previouslyParsedOperand.operandType = OperandType::ParenthesisContents;
 }
 
 void Expression::RangeDotOperator() {
@@ -72,16 +82,6 @@ void Expression::RangeDotOperator() {
 		currentBinaryOperator = "..";
 	}
 	TerminateNumericLiteral();
-}
-
-void Expression::ParseRightParenthesis() {
-	currentBracketNestingLevel--;
-	bool isLatestLeftParenthesisFunctionCall = leftParenCallsStack.top();
-	leftParenCallsStack.pop();
-	OperatorType parenthesisType = isLatestLeftParenthesisFunctionCall ? OperatorType::FunctionClosing : OperatorType::RightParenthesis;
-
-	AddOperator(parenthesisType, "");
-	previouslyParsedOperand.operandType = OperandType::ParenthesisContents;
 }
 
 void Expression::EndBinaryOperator() {
@@ -118,10 +118,11 @@ void Expression::EndBinaryOperator() {
 	currentBinaryOperator = "";
 }
 
-void Expression::ParseFunctionCall() {
+void Expression::ParseFunctionCall(bool regularCall) {
 	int endIndex = expressionContents.size() - 1;
-	expressionContents[endIndex] = Operand(OperandType::FunctionCall, previouslyParsedOperand.operandContents);
-	previouslyParsedOperand.operandType = OperandType::FunctionCall;
+	OperandType operand = regularCall ? OperandType::FunctionCall : OperandType::InitializerCall;
+	expressionContents[endIndex] = Operand(operand, previouslyParsedOperand.operandContents);
+	previouslyParsedOperand.operandType = operand;
 }
 
 void Expression::AddOperator(OperatorType newOpType, std::string newOpContents) {
@@ -187,5 +188,5 @@ bool Expression::NotInString() {
 }
 
 std::string Expression::GetLatestSymbol() {
-	return currentOperand.operandContents;
+	return previouslyParsedOperand.operandContents;
 }
