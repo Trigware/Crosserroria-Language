@@ -44,7 +44,8 @@ enum class OperatorType {
 	TernaryOperatorValueOnSuccess,
 	TernaryOperatorValueOnFail,
 	AttributeAccess,
-	SpecificFunctionParameter
+	SpecificFunctionParameter,
+	CastingOverload
 };
 
 enum class TokenType {

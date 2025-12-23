@@ -60,6 +60,7 @@ Operator::operator std::string() const {
 		case OperatorType::TernaryOperatorValueOnFail: result += "Ternary Failure"; break;
 		case OperatorType::AttributeAccess: result += "Attribute"; break;
 		case OperatorType::SpecificFunctionParameter: result += "ParamName"; break;
+		case OperatorType::CastingOverload: result += "Cast"; break;
 	}
 	return result + ")";
 }
@@ -124,7 +125,7 @@ ClassLevelMember::operator std::string() const {
 			break;
 		case MemberType::Operator:
 			output += "op: " + (std::string)overloadedOperator + ", lhs: " + primaryMember.memberName + " (" + (std::string)primaryMember.dataType + ")";
-			output += ", rhs: " + secondaryMember.memberName + " (" + (std::string)primaryMember.dataType + ")";
+			if (overloadedOperator.operatorType == OperatorType::BinaryOperator) output += ", rhs: " + secondaryMember.memberName + " (" + (std::string)secondaryMember.dataType + ")";
 			output += ", access: " + accessModifierAsStr;
 			output += ", type: " + (std::string)overloadedOperatorReturnType;
 			break;
@@ -172,6 +173,14 @@ FunctionLevelInstruction::operator std::string() const {
 		case LoopControlFlow::Break: loopControlFlowAsStr = "BREAK"; break;
 	}
 
+	std::string returnStatementTypeAsStr = "";
+	switch (returnStatementType) {
+		case ReturnStatementType::Regular: returnStatementTypeAsStr = "Regular"; break;
+		case ReturnStatementType::ImpossibleCast: returnStatementTypeAsStr = "Impossible Cast"; break;
+		case ReturnStatementType::AutoBreak: returnStatementTypeAsStr = "Auto-Break"; break;
+		default: returnStatementTypeAsStr = "UNDEFINED(" + std::to_string(static_cast<int>(returnStatementType)) + ")"; break;
+	}
+
 	std::string returnValueMessage = expressionTextPure, switchCaseMessage = expressionTextPure;
 	if (returnValueMessage == "") returnValueMessage = "void";
 	if (isDefaultCase) switchCaseMessage = "default";
@@ -183,7 +192,7 @@ FunctionLevelInstruction::operator std::string() const {
 		case InstructionType::Conditional: output = "Conditional[type: " + conditonalTypeAsStr + expressionText; break;
 		case InstructionType::LoopStatement: output = "Loop[" + expressionTextPure + iterNameStr + iterTypeStr + indexVarNameStr; break;
 		case InstructionType::LoopControlFlow: output = "LoopCF[type: " + loopControlFlowAsStr + ", loopCount: " + std::to_string(loopCount); break;
-		case InstructionType::ReturnStatement: output = "Return[" + returnValueMessage; break;
+		case InstructionType::ReturnStatement: output = "Return[" + returnValueMessage + ", type: " + returnStatementTypeAsStr; break;
 		case InstructionType::SwitchStatement: output = "Switch[" + expressionTextPure; break;
 		case InstructionType::SwitchCase: output = "Case[" + switchCaseMessage; break;
 	}

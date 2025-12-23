@@ -46,7 +46,7 @@ struct ClassLevelMember {
 	BasicMemberInfo primaryMember = BasicMemberInfo(), secondaryMember = BasicMemberInfo();
 
 	bool isAlgebraic = false, encounteredInheritence = false, encounteredConstructor = false, possiblyEndedFirstOperand = false, encounteredPossibleOperatorSign = false;
-	bool isInFirstOperand = true;
+	bool isInFirstOperand = true, everEncounteredUnary = false;
 	Operator overloadedOperator = Operator();
 	DataType overloadedOperatorReturnType = DataType();
 	std::optional<Expression> assignedToValue = std::nullopt;

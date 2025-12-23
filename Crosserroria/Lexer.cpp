@@ -34,6 +34,7 @@ void Lexer::IntitializeOnNewLine() {
 	assignmentEncountered = parametersEncountered = inOptionalParameter = canBeClassDeclaration = encounteredNonTab = false;
 	currentFunctionParameter.Reset();
 	currentEnumDataParameter.Reset();
+	latestSymbolsHistory.clear();
 
 	normalSymbolsParsed = symbolsParsedThisLine = currentNestingLevel = 0;
 }
@@ -70,13 +71,14 @@ void Lexer::ParseLine(std::string currentLine) {
 		case MemberType::Function: ParseFunctionParameter(); break;
 	}
 
-	if (currentNestingLevel == 0 && CheckIfCouldBeOperatorOverload() && encounteredPossibleOperator) currentClassLevelMember.memberType = MemberType::Operator;
+	if (currentNestingLevel == 0 && encounteredPossibleOperator && CheckIfCouldBeOperatorOverload()) currentClassLevelMember.memberType = MemberType::Operator;
 	TerminateCurrentClassLevelMember();
 	if (currentNestingLevel == 0) return;
 	EndFunctionLevelMember();
 }
 
 void Lexer::TerminateCurrentClassLevelMember() {
+	if (currentClassLevelMember.assignedToValue.has_value()) currentClassLevelMember.assignedToValue.value().EndExpression();
 	bool validClassLevelMember = currentNestingLevel == 0 && currentClassLevelMember.memberType != MemberType::Unknown;
 	if (validClassLevelMember && latestSymbol == ":") { currentClassLevelMember.memberType = MemberType::Enum; currentEnumMember = EnumMember(); return; }
 	if (currentClassLevelMember.encounteredConstructor) currentClassLevelMember.memberType = MemberType::Constructor;
@@ -116,6 +118,13 @@ void Lexer::ParseSymbol(std::string symbolName) {
 	if (currentClassLevelMember.possiblyEndedFirstOperand && symbolName != "") {
 		if (specialSymbol) currentClassLevelMember.overloadedOperator.operatorContents += symbolName;
 		else currentClassLevelMember.possiblyEndedFirstOperand = false;
+	}
+
+	bool statementSeperator = symbolName == ";" && isNotInStr;
+	if (statementSeperator) {
+		TerminateCurrentClassLevelMember();
+		IntitializeOnNewLine();
+		return;
 	}
 
 	if (assignmentEncountered) { (*currentClassLevelMember.assignedToValue).ParseNextSymbol(symbolName); return; }
@@ -166,11 +175,6 @@ void Lexer::ParseFieldSymbol(bool specialSymbol, std::string symbolName) {
 			currentClassLevelMember.assignedToValue = Expression();
 			return;
 		}
-		if (symbolName == ";") {
-			TerminateCurrentClassLevelMember();
-			IntitializeOnNewLine();
-			return;
-		}
 		return;
 	}
 	switch (previousToken) {
@@ -185,8 +189,9 @@ void Lexer::EndFunctionLevelMember(bool arrowSyntax) {
 	functionLevelMember.underlyingExpression.EndExpression();
 	int contentsSize = functionLevelMember.underlyingExpression.expressionContents.size(), historySize = latestSymbolsHistory.size();
 	bool latestTokenOperator = !functionLevelMember.underlyingExpression.latestExpressionElementIsOperand;
-	bool isElse = contentsSize == 1 && latestTokenOperator && functionLevelMember.underlyingExpression.latestOperator.operatorContents == "!";
+	bool isElse = contentsSize == 1 && latestTokenOperator && functionLevelMember.underlyingExpression.latestOperator.operatorContents == "!" && functionLevelMember.instructionType == InstructionType::PlainExpression;
 	bool isCaseStatement = IsInSwitchCase();
+
 	functionLevelMember.isDefaultCase = isCaseStatement && contentsSize == 1 && std::holds_alternative<Operator>(functionLevelMember.underlyingExpression.expressionContents[0])
 		&& std::get<Operator>(functionLevelMember.underlyingExpression.expressionContents[0]).operatorContents == "!";
 	if (isCaseStatement) isElse = false;
@@ -200,11 +205,23 @@ void Lexer::EndFunctionLevelMember(bool arrowSyntax) {
 	}
 	if (functionLevelMember.isWrappedInLoop) ParseLoopAdjecentStatement();
 
+	bool encounteredSpecialReturnType = functionLevelMember.instructionType == InstructionType::ReturnStatement && functionLevelMember.underlyingExpression.expressionContents.size() == 1;
+	if (encounteredSpecialReturnType) {
+		std::string latestOperator = functionLevelMember.underlyingExpression.latestOperator.operatorContents;
+		if (latestOperator == "!") functionLevelMember.returnStatementType = ReturnStatementType::ImpossibleCast;
+		if (latestOperator == "@") functionLevelMember.returnStatementType = ReturnStatementType::AutoBreak;
+		if (functionLevelMember.returnStatementType != ReturnStatementType::Regular) functionLevelMember.underlyingExpression.expressionContents.clear();
+	}
+
 	CheckForSimpleCompoundAssignment();
 	if (compoundOperator != "") HandleCompoundAssignmentAtInstructionEndTime();
 	if (functionLevelMember.couldBeSwitchStatement) HandleSwitchStatement();
 	if (functionLevelMember.instructionType == InstructionType::Declaration && functionLevelMember.variableDeclarationType.typeName == "") CorrectDeclarationWithoutValue();
-	if (functionLevelMember.instructionType != InstructionType::Unknown) listOfTokenizedInstructions.push_back(functionLevelMember);
+	if (functionLevelMember.instructionType != InstructionType::Unknown) {
+		FunctionLevelInstruction pushedElement(functionLevelMember);
+		//std::cout << static_cast<int>(functionLevelMember.returnStatementType) << " " << static_cast<int>(pushedElement.returnStatementType) << std::endl;
+		listOfTokenizedInstructions.push_back(functionLevelMember);
+	}
 }
 
 std::vector<std::string>& Lexer::GetActiveSuperClassList() {
@@ -248,11 +265,17 @@ bool Lexer::CheckIfCouldBeOperatorOverload() {
 	if (currentClassLevelMember.accessModifier == AccessModifier::Unknown) return false;
 	previousToken = TokenType::BeforeParameterName;
 	currentClassLevelMember.overloadedOperator.operatorContents = "";
-	std::cout << "!!!" << std::endl;
 
 	for (int i = 1; i < latestSymbolsHistory.size(); i++) {
 		std::string currentSymbol = latestSymbolsHistory[i];
 		bool isSymbolSpecial = IsSymbolSpecial(currentSymbol);
+
+		if (isSymbolSpecial && previousToken == TokenType::BeforeParameterName) {
+			currentClassLevelMember.overloadedOperator.operatorContents += currentSymbol;
+			currentClassLevelMember.everEncounteredUnary = true;
+			continue;
+		}
+
 		bool isInArrowSyntax = latestSymbolsHistory[i - 1] == "=" && currentSymbol == ">";
 		if (previousToken == TokenType::AfterParameterName && currentSymbol == ":") { previousToken = TokenType::Declaration; continue; }
 
@@ -278,13 +301,17 @@ bool Lexer::CheckIfCouldBeOperatorOverload() {
 				GetCurrentWorkingMember().memberName = currentSymbol; previousToken = TokenType::AfterParameterName;
 				continue;
 			case TokenType::Declaration:
-				GetCurrentWorkingMember().dataType = DataType(currentSymbol); previousToken = TokenType::AfterParameterName;
+				GetCurrentWorkingMember().dataType = DataType(currentSymbol);
+				previousToken = TokenType::AfterParameterName;
 				continue;
 		}
 	}
 
-	bool wasPreviousArrow = previousToken == TokenType::ArrowSyntax;
 	bool hasOperator = currentClassLevelMember.overloadedOperator.operatorContents != "";
+	if (currentClassLevelMember.everEncounteredUnary) currentClassLevelMember.overloadedOperator.operatorType = OperatorType::LeftUnaryOperator;
+	else currentClassLevelMember.overloadedOperator.operatorType = hasOperator ? OperatorType::BinaryOperator : OperatorType::CastingOverload;
+
+	bool wasPreviousArrow = previousToken == TokenType::ArrowSyntax;
 	bool hasReturnType = currentClassLevelMember.overloadedOperatorReturnType.typeName != "";
-	return wasPreviousArrow && hasOperator && hasReturnType;
+	return wasPreviousArrow && hasReturnType;
 }

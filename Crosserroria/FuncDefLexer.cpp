@@ -10,15 +10,6 @@ void Lexer::InitializeFunctionLevelMember() {
 	compoundOperator = "";
 }
 
-FunctionLevelInstruction::FunctionLevelInstruction() {
-	underlyingExpression = Expression();
-	instructionType = InstructionType::Unknown;
-	isDeclaredVariableConstant = false;
-	variableName = "";
-	variableDeclarationType = DataType();
-	conditionalType = ConditionalType::Unknown;
-}
-
 void Lexer::ParseFunctionLevelSymbol(std::string symbolName) {
 	if (symbolName != " " && functionLevelMember.instructionType == InstructionType::Unknown) functionLevelMember.instructionType = InstructionType::PlainExpression;
 	if (IsInSwitchCase()) { HandleSwitchCases(symbolName); return; }

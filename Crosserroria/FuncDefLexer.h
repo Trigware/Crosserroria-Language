@@ -29,8 +29,14 @@ enum class LoopControlFlow {
 	Break
 };
 
+enum class ReturnStatementType {
+	Regular,
+	ImpossibleCast,
+	AutoBreak
+};
+
 struct FunctionLevelInstruction {
-	FunctionLevelInstruction();
+	FunctionLevelInstruction() = default;
 	Expression underlyingExpression, switchValue;
 	InstructionType instructionType = InstructionType::Unknown;
 	int nestingLevel = 0, loopCount = 0;
@@ -42,5 +48,6 @@ struct FunctionLevelInstruction {
 		isWrappedInLoop = false, isInLoopIndexVariableName = false, declarationConstruction = false;
 	ConditionalType conditionalType = ConditionalType::Unknown;
 	LoopControlFlow loopControlFlowType = LoopControlFlow::Unknown;
+	ReturnStatementType returnStatementType = ReturnStatementType::Regular;
 	operator std::string() const;
 };
