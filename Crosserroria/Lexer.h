@@ -10,7 +10,8 @@ enum class MemberType {
 	Field,
 	Enum,
 	Class,
-	Constructor
+	Constructor,
+	Operator
 };
 
 struct FunctionParameter {
@@ -33,13 +34,21 @@ struct EnumMember {
 	operator std::string() const;
 };
 
+struct BasicMemberInfo {
+	std::string memberName = "";
+	DataType dataType = DataType();
+	bool fieldIsConstant = false;
+};
+
 struct ClassLevelMember {
 	MemberType memberType = MemberType::Unknown;
-	std::string memberName = "";
-	DataType dataType;
 	AccessModifier accessModifier = AccessModifier::Unknown;
+	BasicMemberInfo primaryMember = BasicMemberInfo(), secondaryMember = BasicMemberInfo();
 
-	bool fieldIsConstant = false, isAlgebraic = false, encounteredInheritence = false, encounteredConstructor = false;
+	bool isAlgebraic = false, encounteredInheritence = false, encounteredConstructor = false, possiblyEndedFirstOperand = false, encounteredPossibleOperatorSign = false;
+	bool isInFirstOperand = true;
+	Operator overloadedOperator = Operator();
+	DataType overloadedOperatorReturnType = DataType();
 	std::optional<Expression> assignedToValue = std::nullopt;
 	std::vector<std::string> workingClassSuperClassList, inheritanceClassSuperClassList{};
 
@@ -56,10 +65,11 @@ public:
 	void ParseScript(std::string filePath);
 	static bool IsNumber(char ch);
 	static bool IsRegularSymbolChar(char ch);
+	static bool IsSymbolSpecial(std::string& symbol);
 	static std::string GetAttributeListAsString(const std::vector<std::string>& attributeList);
 private:
 	std::vector<std::variant<ClassLevelMember, FunctionLevelInstruction>> listOfTokenizedInstructions;
-	std::vector<std::string> functionLevelSymbolHistory;
+	std::vector<std::string> latestSymbolsHistory;
 	std::string currentSymbol = "", compoundOperator = "", latestSymbol = "";
 	ClassLevelMember currentClassLevelMember;
 	FunctionLevelInstruction functionLevelMember;
@@ -71,7 +81,7 @@ private:
 	TokenType previousToken = TokenType::None;
 	FunctionParameter currentFunctionParameter, currentEnumDataParameter;
 	bool assignmentEncountered = false, parametersEncountered = false, inOptionalParameter = false,
-		encounteredNonTab = false, canBeClassDeclaration = false;
+		encounteredNonTab = false, canBeClassDeclaration = false, encounteredPossibleOperator = false;
 	int normalSymbolsParsed = 0, symbolsParsedThisLine = 0, currentNestingLevel = 0;
 	std::vector<int> switchStatementNestingLevels{};
 	void ParseFieldSymbol(bool specialSymbol, std::string symbolName);
@@ -103,8 +113,10 @@ private:
 	void ParseEnumMemberData(const std::string& symbolName, bool notInString);
 	void TerminateCurrentClassLevelMember();
 	std::vector<std::string>& GetActiveSuperClassList();
+	BasicMemberInfo& GetCurrentWorkingMember();
 	bool IsCurrentStatementClassDeclaration(const std::string& symbolName);
 	void ParsePossibleClassDeclaration();
+	bool CheckIfCouldBeOperatorOverload();
 	static const int AmountOfEqualsInClassDeclarations = 2;
 	static const int ActualClassNameHistoryOffset = AmountOfEqualsInClassDeclarations + 2, BeforeClassDotSeperatorHistoryOffset = 2;
 };

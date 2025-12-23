@@ -5,7 +5,7 @@
 
 void Lexer::InitializeFunctionLevelMember() {
 	functionLevelMember = FunctionLevelInstruction();
-	functionLevelSymbolHistory.clear();
+	latestSymbolsHistory.clear();
 	functionLevelMember.nestingLevel = currentNestingLevel;
 	compoundOperator = "";
 }
@@ -38,7 +38,7 @@ void Lexer::ParseFunctionLevelSymbol(std::string symbolName) {
 
 	if (encounteredExpressionOutsideDeclarationConstruction) return;
 	if (declarationConstructor) {
-		functionLevelMember.variableDeclarationType = functionLevelSymbolHistory[functionLevelSymbolHistory.size() - 1];
+		functionLevelMember.variableDeclarationType = latestSymbolsHistory[latestSymbolsHistory.size() - 1];
 		functionLevelMember.declarationConstruction = true;
 	}
 	if (symbolName == "." && isNotInStr && functionLevelMember.instructionType == InstructionType::PlainExpression)
@@ -46,20 +46,20 @@ void Lexer::ParseFunctionLevelSymbol(std::string symbolName) {
 
 	bool colonSeperator = (symbolName == ":" && (functionLevelMember.instructionType == InstructionType::Conditional || isElse)) && isNotInStr;
 	bool semicolonSeperator = symbolName == ";" && isNotInStr;
-	int symbolHistorySize = functionLevelSymbolHistory.size();
+	int symbolHistorySize = latestSymbolsHistory.size();
 	bool isLoop = symbolName == "@" && symbolHistorySize == 0, isReturnStatement = symbolName == ">" && symbolHistorySize == 0;
-	bool singlelinedLoop = isNotInStr && symbolHistorySize > 0 && functionLevelSymbolHistory[symbolHistorySize - 1] == "=" && symbolName == ">";
+	bool singlelinedLoop = isNotInStr && symbolHistorySize > 0 && latestSymbolsHistory[symbolHistorySize - 1] == "=" && symbolName == ">";
 	bool disprovingSwitch = functionLevelMember.couldBeSwitchStatement && symbolName != " " && !semicolonSeperator;
 	if (singlelinedLoop) { HandleInstructionSeperationSymbol(true, true); return; }
 	if (isSpecificParameter) {
-		std::string parameterName = functionLevelSymbolHistory[functionLevelSymbolHistory.size() - 1];
+		std::string parameterName = latestSymbolsHistory[latestSymbolsHistory.size() - 1];
 		functionLevelMember.underlyingExpression.currentOperand.Reset();
 		functionLevelMember.underlyingExpression.expressionContents.push_back(Operator(OperatorType::SpecificFunctionParameter, parameterName));
 		return;
 	}
 
 	if (disprovingSwitch) { functionLevelMember.couldBeSwitchStatement = false; functionLevelMember.switchValue.expressionContents.clear(); }
-	if (symbolName != " ") functionLevelSymbolHistory.push_back(symbolName);
+	if (symbolName != " ") latestSymbolsHistory.push_back(symbolName);
 	if (isReturnStatement) { functionLevelMember.instructionType = InstructionType::ReturnStatement; return; }
 	if (symbolName == "," && functionLevelMember.underlyingExpression.currentBracketNestingLevel == 0 && functionLevelMember.isWrappedInLoop && isNotInStr) { functionLevelMember.isInLoopIndexVariableName = true; return; }
 	if (isLoop) { functionLevelMember.isWrappedInLoop = true; return; }
@@ -93,8 +93,8 @@ void Lexer::HandleExpressionOnSpecialFunctionLevelSymbol(std::string symbolName)
 	functionLevelMember.instructionType = InstructionType::Assignment;
 	functionLevelMember.variableName = latestSymbol;
 
-	if (functionLevelSymbolHistory.size() == 0) return;
-	std::string latestAttribute = functionLevelSymbolHistory[functionLevelSymbolHistory.size() - 3]; // By last symbol it recognited assignment, second last is equals, third last is last attribute
+	if (latestSymbolsHistory.size() == 0) return;
+	std::string latestAttribute = latestSymbolsHistory[latestSymbolsHistory.size() - 3]; // By last symbol it recognited assignment, second last is equals, third last is last attribute
 	functionLevelMember.assignmentAttributeNameList.push_back(latestAttribute);
 }
 
@@ -114,8 +114,8 @@ bool Lexer::DetermineIfAssigning(std::string symbolName) {
 	bool isAssignment = false, determiningIfIsAssignment = symbolName != " " && functionLevelMember.potentiallyEncounteredAssignmentSymbol;
 	if (determiningIfIsAssignment) {
 		std::string symbolBeforeEqualsSymbol = "";
-		int historySize = functionLevelSymbolHistory.size();
-		if (historySize >= 2) symbolBeforeEqualsSymbol = functionLevelSymbolHistory[historySize - 2];
+		int historySize = latestSymbolsHistory.size();
+		if (historySize >= 2) symbolBeforeEqualsSymbol = latestSymbolsHistory[historySize - 2];
 		isAssignment = symbolName != "=" && symbolBeforeEqualsSymbol != "!";
 
 		bool isValidBinOp = false;
@@ -140,9 +140,9 @@ void Lexer::HandleCompoundAssignmentAtFindTime() {
 }
 
 bool Lexer::ParseConditionalSymbol() {
-	int historySize = functionLevelSymbolHistory.size();
+	int historySize = latestSymbolsHistory.size();
 	if (historySize == 1) { SetupConditional(ConditionalType::IfStatement); return true; }
-	std::string firstSymbol = functionLevelSymbolHistory[0];
+	std::string firstSymbol = latestSymbolsHistory[0];
 	if (firstSymbol == "!" && historySize == 2) { SetupConditional(ConditionalType::ElifStatement); functionLevelMember.underlyingExpression = Expression(); return true; }
 	return false;
 }

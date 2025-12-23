@@ -56,7 +56,8 @@ enum class TokenType {
 	Assignment,
 	Expression,
 	BeforeParameterName,
-	AfterParameterName
+	AfterParameterName,
+	ArrowSyntax
 };
 
 struct Operand {

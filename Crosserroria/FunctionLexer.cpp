@@ -3,7 +3,7 @@
 void Lexer::ParseFunctionSymbol(bool specialSymbol, std::string symbolName) {
 	if (!parametersEncountered) {
 		switch (previousToken) {
-			case TokenType::AccessModifier: currentClassLevelMember.memberName = symbolName; previousToken = TokenType::MemberName; return;
+			case TokenType::AccessModifier: currentClassLevelMember.primaryMember.memberName = symbolName; previousToken = TokenType::MemberName; return;
 			case TokenType::MemberName: parametersEncountered = true; previousToken = TokenType::BeforeParameterName; return;
 		}
 	}
@@ -52,12 +52,12 @@ FunctionParameter::FunctionParameter(const FunctionParameter& parameter) {
 void Lexer::HandleStartFunctionSymbol(std::string symbolName) {
 	size_t underscorePosition = symbolName.find('_');
 	currentClassLevelMember.memberType = MemberType::Function;
-	if (underscorePosition == std::string::npos) { currentClassLevelMember.dataType = symbolName; return; }
+	if (underscorePosition == std::string::npos) { currentClassLevelMember.primaryMember.dataType = symbolName; return; }
 
 	std::string functionReturnType = symbolName.substr(0, underscorePosition);
 	std::string functionName = symbolName.substr(underscorePosition + 1);
-	currentClassLevelMember.dataType = functionReturnType;
-	currentClassLevelMember.memberName = functionName;
+	currentClassLevelMember.primaryMember.dataType = functionReturnType;
+	currentClassLevelMember.primaryMember.memberName = functionName;
 	currentClassLevelMember.accessModifier = AccessModifier::Private;
 	parametersEncountered = true;
 	previousToken = TokenType::BeforeParameterName;

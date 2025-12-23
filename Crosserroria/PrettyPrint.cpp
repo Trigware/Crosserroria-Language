@@ -81,6 +81,7 @@ ClassLevelMember::operator std::string() const {
 		case MemberType::Enum: output = "Enum"; break;
 		case MemberType::Class: output = "Class"; break;
 		case MemberType::Constructor: output = "Constructor"; break;
+		case MemberType::Operator: output = "Operator"; break;
 	}
 	output += "[";
 
@@ -93,16 +94,16 @@ ClassLevelMember::operator std::string() const {
 	int numberOfEnumMembers = enumMembers.size();
 	switch (memberType) {
 		case MemberType::Field:
-			output += "name: " + memberName + ", type: " + (std::string)dataType + ", access: " + accessModifierAsStr + ", ";
-			if (fieldIsConstant) output += "constant"; else output += "mutable";
+			output += "name: " + primaryMember.memberName + ", type: " + (std::string)(primaryMember.dataType) + ", access: " + accessModifierAsStr + ", ";
+			if (primaryMember.fieldIsConstant) output += "constant"; else output += "mutable";
 			if (assignedToValue != std::nullopt) output += ", value: " + (std::string)assignedToValue.value(); break;
 		case MemberType::Function:
-			output += "name: " + memberName + ", type: " + (std::string)dataType + ", access: " + accessModifierAsStr + ", params: {";
+			output += "name: " + primaryMember.memberName + ", type: " + (std::string)(primaryMember.dataType) + ", access: " + accessModifierAsStr + ", params: {";
 			output += FunctionParamsAsString();
 			output += "}";
 			break;
 		case MemberType::Enum:
-			output += "name: " + memberName;
+			output += "name: " + primaryMember.memberName;
 			if (isAlgebraic) output += ", algebraic";
 			output += ", options: {";
 			for (int i = 0; i < numberOfEnumMembers; i++) {
@@ -113,12 +114,19 @@ ClassLevelMember::operator std::string() const {
 			output += "}";
 			break;
 		case MemberType::Class:
+			output += "access: " + accessModifierAsStr + ", ";
 			output += Lexer::GetAttributeListAsString(workingClassSuperClassList);
 			if (!encounteredInheritence) break;
 			output += " inherits " + Lexer::GetAttributeListAsString(inheritanceClassSuperClassList);
 			break;
 		case MemberType::Constructor:
 			output += "access: " + accessModifierAsStr + ", params: {" + FunctionParamsAsString() + "}";
+			break;
+		case MemberType::Operator:
+			output += "op: " + (std::string)overloadedOperator + ", lhs: " + primaryMember.memberName + " (" + (std::string)primaryMember.dataType + ")";
+			output += ", rhs: " + secondaryMember.memberName + " (" + (std::string)primaryMember.dataType + ")";
+			output += ", access: " + accessModifierAsStr;
+			output += ", type: " + (std::string)overloadedOperatorReturnType;
 			break;
 		}
 	output += "]";
