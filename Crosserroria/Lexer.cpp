@@ -80,6 +80,12 @@ void Lexer::ParseLine(std::string currentLine) {
 void Lexer::TerminateCurrentClassLevelMember() {
 	if (currentClassLevelMember.assignedToValue.has_value()) currentClassLevelMember.assignedToValue.value().EndExpression();
 	bool validClassLevelMember = currentNestingLevel == 0 && currentClassLevelMember.memberType != MemberType::Unknown;
+	if (currentClassLevelMember.encounteredIterator) {
+		currentClassLevelMember.memberType = MemberType::Iterator;
+		currentClassLevelMember.defaultIteratorName = currentClassLevelMember.primaryMember.memberName;
+		if (currentClassLevelMember.functionParameters.size() != 1) return;
+		currentClassLevelMember.indexVariable = currentClassLevelMember.functionParameters[0];
+	}
 	if (validClassLevelMember && latestSymbol == ":") { currentClassLevelMember.memberType = MemberType::Enum; currentEnumMember = EnumMember(); return; }
 	if (currentClassLevelMember.encounteredConstructor) currentClassLevelMember.memberType = MemberType::Constructor;
 	if (validClassLevelMember) listOfTokenizedInstructions.push_back(currentClassLevelMember);
@@ -219,7 +225,6 @@ void Lexer::EndFunctionLevelMember(bool arrowSyntax) {
 	if (functionLevelMember.instructionType == InstructionType::Declaration && functionLevelMember.variableDeclarationType.typeName == "") CorrectDeclarationWithoutValue();
 	if (functionLevelMember.instructionType != InstructionType::Unknown) {
 		FunctionLevelInstruction pushedElement(functionLevelMember);
-		//std::cout << static_cast<int>(functionLevelMember.returnStatementType) << " " << static_cast<int>(pushedElement.returnStatementType) << std::endl;
 		listOfTokenizedInstructions.push_back(functionLevelMember);
 	}
 }

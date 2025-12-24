@@ -35,6 +35,7 @@ void Expression::ParseNextChar(char ch) {
 	if (ch == '.' && currentOperand.operandType == OperandType::RealLiteral) { RangeDotOperator(); return; }
 	if (ch == '"') { ParseApostrophe(); EndBinaryOperator(); return; }
 	if (currentOperand.operandType == OperandType::StringLiteral) { currentOperand.operandContents += ch; return; }
+	if (ch == '\t') return;
 
 	if (isNumberChar) { ParseNumberChar(ch); EndBinaryOperator(); return; }
 	if (isNumberLiteralTerminator) TerminateNumericLiteral();
@@ -42,33 +43,64 @@ void Expression::ParseNextChar(char ch) {
 	if (isUnrecognizedSymbolTerminator) TerminateUnrecognizedSymbolChar();
 
 	if (ch == ',') { expressionContents.push_back(Operator(OperatorType::FunctionParameterSeperator)); return; }
+	if (ch == '[' || ch == ']') { ParseOpeningSquareBrackets(ch == '['); return; }
 	if (ch == '(' || ch == '{') { ParseLeftParenthesis(ch == '('); return; }
-	if (ch == ')' || ch == '}') { ParseRightParenthesis(); return; }
+	if (ch == ')' || ch == '}') { ParseRightParenthesis(ch == ')'); return; }
 
 	if (previouslyParsedOperand.operandType == OperandType::Unknown) { AddOperator(OperatorType::LeftUnaryOperator, std::string(1, ch)); return; }
 
 	currentBinaryOperator += ch;
 }
 
+void Expression::ParseOpeningSquareBrackets(bool isOpening) {
+	EndBinaryOperator();
+	bool isArray = !latestExpressionElementIsOperand || latestOperator.operatorType == OperatorType::LeftUnaryOperator;
+	if (latestExpressionElementIsOperand && !isArray)
+		isArray = previouslyParsedOperand.operandType == OperandType::FunctionCall || previouslyParsedOperand.operandType == OperandType::InitializerCall;
+
+	if (isOpening) squareBracketIsArrayStack.push(isArray);
+	else {
+		isArray = squareBracketIsArrayStack.top();
+		squareBracketIsArrayStack.pop();
+	}
+
+	OperatorType newOperator = isArray ? OperatorType::ArrayOpen : OperatorType::IndexerOpen;
+	if (!isOpening) newOperator = isArray ? OperatorType::ArrayClose : OperatorType::IndexerClose;
+	currentBracketNestingLevel += isOpening ? 1 : -1;
+
+	if (isOpening) leftParenCallsStack.push(false);
+	else leftParenCallsStack.pop();
+
+	AddOperator(newOperator, "");
+}
+
+void Expression::ParseCurlyBraces(bool isOpening) {
+	OperatorType newOperator = isOpening ? OperatorType::MapOpen : OperatorType::MapClose;
+	AddOperator(newOperator, "");
+}
+
 void Expression::ParseLeftParenthesis(bool regularCall) {
 	currentBracketNestingLevel++;
 	EndBinaryOperator();
-	bool functionCall = previouslyParsedOperand.operandType == OperandType::Variable && latestExpressionElementIsOperand;
+	bool functionCall = latestExpressionElementIsOperand && previouslyParsedOperand.operandType == OperandType::Variable;
 	leftParenCallsStack.push(functionCall);
 	if (functionCall) { ParseFunctionCall(regularCall); return; }
 
-	AddOperator(OperatorType::LeftParenthesis, "");
 	previouslyParsedOperand.operandType = OperandType::Unknown;
+	if (!regularCall) { ParseCurlyBraces(true); return; }
+	AddOperator(OperatorType::LeftParenthesis, "");
 }
 
-void Expression::ParseRightParenthesis() {
+void Expression::ParseRightParenthesis(bool regularCall) {
 	currentBracketNestingLevel--;
 	bool isLatestLeftParenthesisFunctionCall = leftParenCallsStack.top();
 	leftParenCallsStack.pop();
-	OperatorType parenthesisType = isLatestLeftParenthesisFunctionCall ? OperatorType::FunctionClosing : OperatorType::RightParenthesis;
+	OperatorType closingType = regularCall ? OperatorType::FunctionClosing : OperatorType::InitializerClosing;
+	OperatorType parenthesisType = isLatestLeftParenthesisFunctionCall ? closingType : OperatorType::RightParenthesis;
 
-	AddOperator(parenthesisType, "");
 	previouslyParsedOperand.operandType = OperandType::ParenthesisContents;
+	if (!regularCall && !isLatestLeftParenthesisFunctionCall) { ParseCurlyBraces(false); return; }
+	AddOperator(parenthesisType, "");
 }
 
 void Expression::RangeDotOperator() {

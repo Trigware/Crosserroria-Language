@@ -50,17 +50,24 @@ Operator::operator std::string() const {
 	switch (operatorType) {
 		case OperatorType::Unknown: result += "unknown"; break;
 		case OperatorType::LeftUnaryOperator: result += "Left Unary"; break;
-		case OperatorType::RightUnaryOperator: result += "Right Unary"; break;
 		case OperatorType::BinaryOperator: result += "Binary"; break;
 		case OperatorType::LeftParenthesis: result += "Left Paren"; break;
 		case OperatorType::RightParenthesis: result += "Right Paren"; break;
 		case OperatorType::FunctionParameterSeperator: result += "Parameter Seperator"; break;
 		case OperatorType::FunctionClosing: result += "Function Closing"; break;
+		case OperatorType::InitializerClosing: result += "Initializer Closing"; break;
 		case OperatorType::TernaryOperatorValueOnSuccess: result += "Ternary Success"; break;
 		case OperatorType::TernaryOperatorValueOnFail: result += "Ternary Failure"; break;
 		case OperatorType::AttributeAccess: result += "Attribute"; break;
 		case OperatorType::SpecificFunctionParameter: result += "ParamName"; break;
 		case OperatorType::CastingOverload: result += "Cast"; break;
+		case OperatorType::ArrayOpen: result += "Array Open"; break;
+		case OperatorType::ArrayClose: result += "Array Close"; break;
+		case OperatorType::IndexerOpen: result += "Indexer Open"; break;
+		case OperatorType::IndexerClose: result += "Indexer Close"; break;
+		case OperatorType::MapOpen: result += "Map Open"; break;
+		case OperatorType::MapClose: result += "Map Close"; break;
+		case OperatorType::MapKeyName: result += "Map Key"; break;
 	}
 	return result + ")";
 }
@@ -83,6 +90,7 @@ ClassLevelMember::operator std::string() const {
 		case MemberType::Class: output = "Class"; break;
 		case MemberType::Constructor: output = "Constructor"; break;
 		case MemberType::Operator: output = "Operator"; break;
+		case MemberType::Iterator: output = "Iterator"; break;
 	}
 	output += "[";
 
@@ -128,6 +136,9 @@ ClassLevelMember::operator std::string() const {
 			if (overloadedOperator.operatorType == OperatorType::BinaryOperator) output += ", rhs: " + secondaryMember.memberName + " (" + (std::string)secondaryMember.dataType + ")";
 			output += ", access: " + accessModifierAsStr;
 			output += ", type: " + (std::string)overloadedOperatorReturnType;
+			break;
+		case MemberType::Iterator:
+			output += "iteratorName: " + defaultIteratorName + ", iteratorType: " + (std::string)(primaryMember.dataType) + ", indexVar: [" + (std::string)indexVariable + "], access: " + accessModifierAsStr;
 			break;
 		}
 	output += "]";

@@ -22,8 +22,10 @@ void Lexer::ParseFunctionLevelSymbol(std::string symbolName) {
 	bool isElse = symbolName == ":" && functionLevelMember.underlyingExpression.expressionContents.size() == 1 &&
 		!functionLevelMember.underlyingExpression.latestExpressionElementIsOperand &&
 		functionLevelMember.underlyingExpression.latestOperator.operatorContents == "!";
-	bool isSpecificParameter = symbolName == ":" && isNotInStr && functionLevelMember.underlyingExpression.leftParenCallsStack.size()
-		&& functionLevelMember.underlyingExpression.leftParenCallsStack.top();
+
+	bool isSpecialColon = symbolName == ":" && isNotInStr && functionLevelMember.underlyingExpression.leftParenCallsStack.size() > 0;
+	bool isSpecificParameter = isSpecialColon && functionLevelMember.underlyingExpression.leftParenCallsStack.top() == true,
+		isMapKey = isSpecialColon && functionLevelMember.underlyingExpression.leftParenCallsStack.top() == false;
 	bool declarationConstructor = (symbolName == "(" || symbolName == "{") && isNotInStr && functionLevelMember.instructionType == InstructionType::Declaration && functionLevelMember.variableDeclarationType.typeName == "";
 	bool encounteredExpressionOutsideDeclarationConstruction = functionLevelMember.declarationConstruction && functionLevelMember.underlyingExpression.currentBracketNestingLevel == 0;
 
@@ -42,10 +44,9 @@ void Lexer::ParseFunctionLevelSymbol(std::string symbolName) {
 	bool singlelinedLoop = isNotInStr && symbolHistorySize > 0 && latestSymbolsHistory[symbolHistorySize - 1] == "=" && symbolName == ">";
 	bool disprovingSwitch = functionLevelMember.couldBeSwitchStatement && symbolName != " " && !semicolonSeperator;
 	if (singlelinedLoop) { HandleInstructionSeperationSymbol(true, true); return; }
-	if (isSpecificParameter) {
-		std::string parameterName = latestSymbolsHistory[latestSymbolsHistory.size() - 1];
-		functionLevelMember.underlyingExpression.currentOperand.Reset();
-		functionLevelMember.underlyingExpression.expressionContents.push_back(Operator(OperatorType::SpecificFunctionParameter, parameterName));
+
+	if (isSpecificParameter || isMapKey) {
+		ParseSpecialFunctionLevelColonSymbol(isSpecificParameter);
 		return;
 	}
 
@@ -64,6 +65,13 @@ void Lexer::ParseFunctionLevelSymbol(std::string symbolName) {
 
 	functionLevelMember.underlyingExpression.ParseNextSymbol(symbolName);
 	if (functionLevelMember.underlyingExpression.constantDeclarationEncountered) HandleConstantDeclaration();
+}
+
+void Lexer::ParseSpecialFunctionLevelColonSymbol(bool functionParameter) {
+	std::string parameterName = latestSymbolsHistory[latestSymbolsHistory.size() - 1];
+	functionLevelMember.underlyingExpression.currentOperand.Reset();
+	OperatorType usedOperator = functionParameter ? OperatorType::SpecificFunctionParameter : OperatorType::MapKeyName;
+	functionLevelMember.underlyingExpression.expressionContents.push_back(Operator(usedOperator, parameterName));
 }
 
 void Lexer::HandleExpressionOnSpecialFunctionLevelSymbol(std::string symbolName) {

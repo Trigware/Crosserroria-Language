@@ -3,22 +3,18 @@
 void Lexer::ParseFunctionSymbol(bool specialSymbol, std::string symbolName) {
 	if (!parametersEncountered) {
 		switch (previousToken) {
-			case TokenType::AccessModifier: currentClassLevelMember.primaryMember.memberName = symbolName; previousToken = TokenType::MemberName; return;
+			case TokenType::AccessModifier:
+				if (symbolName == "@") currentClassLevelMember.encounteredIterator = true;
+				else { currentClassLevelMember.primaryMember.memberName = symbolName; previousToken = TokenType::MemberName; }
+				return;
 			case TokenType::MemberName: parametersEncountered = true; previousToken = TokenType::BeforeParameterName; return;
 		}
 	}
 
 	bool isDeclaration = symbolName == ":" || symbolName == "!";
 	if (inOptionalParameter) {
-		Expression& currentParameterOptionalValue = currentFunctionParameter.optionalValue.value();
-		Operand currentExpressionOperand = currentParameterOptionalValue.currentOperand;
-		bool noNesting = currentParameterOptionalValue.currentBracketNestingLevel == 0, inString = currentExpressionOperand.operandType == OperandType::StringLiteral;
-
-		if (noNesting && !inString && symbolName == ")") return;
-		if (noNesting && !inString && symbolName == ",") { ParseFunctionParameter(); return; }
-		currentParameterOptionalValue.ParseNextSymbol(symbolName);
-		if (currentParameterOptionalValue.ternaryConditionalNestingLevel > 0) isDeclaration = false;
-		if (inString || currentParameterOptionalValue.currentBracketNestingLevel > 0) return;
+		ParseOptionalParameterInFunctionSignature(symbolName, isDeclaration);
+		return;
 	}
 
 	if (symbolName == ",") { ParseFunctionParameter(); return; }
@@ -28,7 +24,29 @@ void Lexer::ParseFunctionSymbol(bool specialSymbol, std::string symbolName) {
 
 	if (inOptionalParameter) return;
 	if (previousToken == TokenType::BeforeParameterName) currentFunctionParameter.parameterName = symbolName;
-	if (previousToken == TokenType::AfterParameterName && symbolName != ")") currentFunctionParameter.parameterType = symbolName;
+	if (previousToken == TokenType::AfterParameterName) {
+		if (symbolName != ")") { currentFunctionParameter.parameterType = symbolName; return; }
+	}
+}
+
+void Lexer::ParseOptionalParameterInFunctionSignature(const std::string& symbolName, bool& isDeclaration) {
+	Expression& currentParameterOptionalValue = currentFunctionParameter.optionalValue.value();
+	Operand currentExpressionOperand = currentParameterOptionalValue.currentOperand;
+	bool noNesting = currentParameterOptionalValue.currentBracketNestingLevel == 0, inString = currentExpressionOperand.operandType == OperandType::StringLiteral;
+
+	if (symbolName == ":" && !noNesting && !inString) {
+		bool isLatestParenCall = currentParameterOptionalValue.leftParenCallsStack.top();
+		OperatorType newOperatorType = isLatestParenCall ? OperatorType::SpecificFunctionParameter : OperatorType::MapKeyName;
+		currentParameterOptionalValue.AddOperator(newOperatorType, currentParameterOptionalValue.currentOperand.operandContents);
+		currentParameterOptionalValue.currentOperand.Reset();
+		return;
+	}
+
+	if (noNesting && !inString && symbolName == ")") return;
+	if (noNesting && !inString && symbolName == ",") { ParseFunctionParameter(); return; }
+	currentParameterOptionalValue.ParseNextSymbol(symbolName);
+	if (currentParameterOptionalValue.ternaryConditionalNestingLevel > 0) isDeclaration = false;
+	if (inString || currentParameterOptionalValue.currentBracketNestingLevel > 0) return;
 }
 
 void Lexer::ParseFunctionParameter() {

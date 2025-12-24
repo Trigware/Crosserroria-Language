@@ -35,17 +35,24 @@ enum class OperandType {
 enum class OperatorType {
 	Unknown,
 	LeftUnaryOperator,
-	RightUnaryOperator,
 	BinaryOperator,
 	LeftParenthesis,
 	RightParenthesis,
 	FunctionParameterSeperator,
 	FunctionClosing,
+	InitializerClosing,
 	TernaryOperatorValueOnSuccess,
 	TernaryOperatorValueOnFail,
 	AttributeAccess,
 	SpecificFunctionParameter,
-	CastingOverload
+	CastingOverload,
+	ArrayOpen,
+	ArrayClose,
+	IndexerOpen,
+	IndexerClose,
+	MapOpen,
+	MapClose,
+	MapKeyName
 };
 
 enum class TokenType {
@@ -91,7 +98,8 @@ public:
 	void EndExpression();
 	bool NotInString();
 	std::string GetLatestSymbol();
-	std::stack<bool> leftParenCallsStack;
+	std::stack<bool> leftParenCallsStack = std::stack<bool>(), squareBracketIsArrayStack = std::stack<bool>();
+	void AddOperator(OperatorType newOpType, std::string newOpContents);
 private:
 	void ParseApostrophe();
 	void ParseNumberChar(char ch);
@@ -99,11 +107,12 @@ private:
 	void ParseUnrecognizedSymbolChar(char ch);
 	void TerminateUnrecognizedSymbolChar();
 	void EndBinaryOperator();
-	void AddOperator(OperatorType newOpType, std::string newOpContents);
 	void AddOperand();
 	void ParseFunctionCall(bool regularCall);
 	void ParseNextChar(char ch);
 	void ParseLeftParenthesis(bool regularCall);
-	void ParseRightParenthesis();
+	void ParseRightParenthesis(bool regularCall);
 	void RangeDotOperator();
+	void ParseOpeningSquareBrackets(bool isOpenning);
+	void ParseCurlyBraces(bool isOpenning);
 };

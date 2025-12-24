@@ -11,7 +11,8 @@ enum class MemberType {
 	Enum,
 	Class,
 	Constructor,
-	Operator
+	Operator,
+	Iterator
 };
 
 struct FunctionParameter {
@@ -45,7 +46,9 @@ struct ClassLevelMember {
 	AccessModifier accessModifier = AccessModifier::Unknown;
 	BasicMemberInfo primaryMember = BasicMemberInfo(), secondaryMember = BasicMemberInfo();
 
-	bool isAlgebraic = false, encounteredInheritence = false, encounteredConstructor = false, possiblyEndedFirstOperand = false, encounteredPossibleOperatorSign = false;
+	std::string defaultIteratorName = "";
+	FunctionParameter indexVariable = FunctionParameter();
+	bool isAlgebraic = false, encounteredInheritence = false, encounteredConstructor = false, possiblyEndedFirstOperand = false, encounteredPossibleOperatorSign = false, encounteredIterator = false;
 	bool isInFirstOperand = true, everEncounteredUnary = false;
 	Operator overloadedOperator = Operator();
 	DataType overloadedOperatorReturnType = DataType();
@@ -117,6 +120,8 @@ private:
 	bool IsCurrentStatementClassDeclaration(const std::string& symbolName);
 	void ParsePossibleClassDeclaration();
 	bool CheckIfCouldBeOperatorOverload();
+	void ParseSpecialFunctionLevelColonSymbol(bool functionParameter);
+	void ParseOptionalParameterInFunctionSignature(const std::string& symbolName, bool& isDeclaration);
 	static const int AmountOfEqualsInClassDeclarations = 2;
 	static const int ActualClassNameHistoryOffset = AmountOfEqualsInClassDeclarations + 2, BeforeClassDotSeperatorHistoryOffset = 2;
 };
